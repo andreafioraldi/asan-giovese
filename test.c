@@ -1,14 +1,23 @@
-#include "asan-giovese.h"
+// Required definitions
+#include <stdint.h>
+typedef uintptr_t target_ulong;
+#define h2g(x) (x)
+#define g2h(x) (x)
+
+// Include the impl
+#include "asan-giovese-inl.h"
+
+// Test-only headers
 #include "pmparser.h"
 #include <stdio.h>
 
-TARGET_ULONG get_pc() {
+target_ulong get_pc() {
 
-  return (TARGET_ULONG)__builtin_return_address(0);
+  return (target_ulong)__builtin_return_address(0);
 
 }
 
-void asan_giovese_populate_context(struct call_context* ctx, TARGET_ULONG pc) {
+void asan_giovese_populate_context(struct call_context* ctx, target_ulong pc) {
 
   ctx->addresses = calloc(sizeof(void*), 16);
   int i;
@@ -21,7 +30,7 @@ void asan_giovese_populate_context(struct call_context* ctx, TARGET_ULONG pc) {
     switch (i-1) {
 
 #define _RA_CASE(x) \
-  case x: ctx->addresses[i] = (TARGET_ULONG)__builtin_return_address(x); break;
+  case x: ctx->addresses[i] = (target_ulong)__builtin_return_address(x); break;
       _RA_CASE(0)
       _RA_CASE(1)
       _RA_CASE(2)
@@ -49,7 +58,7 @@ void asan_giovese_populate_context(struct call_context* ctx, TARGET_ULONG pc) {
 
 }
 
-char* asan_giovese_printaddr(TARGET_ULONG guest_addr) {
+char* asan_giovese_printaddr(target_ulong guest_addr) {
 
   procmaps_iterator* maps = pmparser_parse(-1);
   procmaps_struct*   maps_tmp = NULL;
@@ -89,12 +98,12 @@ int main() {
 
   struct call_context* ctx = calloc(sizeof(struct call_context), 1);
   asan_giovese_populate_context(ctx, get_pc());
-  asan_giovese_alloc_insert((TARGET_ULONG)&data[16],
-                            (TARGET_ULONG)&data[16 + 10], ctx);
+  asan_giovese_alloc_insert((target_ulong)&data[16],
+                            (target_ulong)&data[16 + 10], ctx);
 
   asan_giovese_poison_region(&data[16], 16, ASAN_HEAP_FREED);
   struct chunk_info* ckinfo =
-      asan_giovese_alloc_search((TARGET_ULONG)&data[16]);
+      asan_giovese_alloc_search((target_ulong)&data[16]);
   if (ckinfo) {
 
     ckinfo->free_ctx = calloc(sizeof(struct call_context), 1);
@@ -102,9 +111,9 @@ int main() {
 
   }
 
-  TARGET_ULONG          pc = get_pc();
-  register TARGET_ULONG sp asm("rsp");
-  register TARGET_ULONG bp asm("rbp");
+  target_ulong          pc = get_pc();
+  register target_ulong sp asm("rsp");
+  register target_ulong bp asm("rbp");
 
   const int IDX = 18;
 
@@ -112,7 +121,7 @@ int main() {
 
   if (asan_giovese_loadN(&data[IDX], 11))
     asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, &data[IDX], 11,
-                                  (TARGET_ULONG)&data[IDX], pc, bp, sp);
+                                  (target_ulong)&data[IDX], pc, bp, sp);
 
 }
 

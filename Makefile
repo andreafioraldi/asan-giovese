@@ -10,8 +10,8 @@ objects = $(CFILES:.c=.o)
 
 all: lib
 
-test: lib
-	$(CC) $(CFLAGS) test.c $(LIBFILE) -o test.bin
+test:
+	$(CC) $(CFLAGS) test.c interval-tree/rbtree.c -o test.bin
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@ $(LDFLAGS)

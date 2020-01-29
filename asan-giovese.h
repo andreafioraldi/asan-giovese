@@ -33,10 +33,6 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
-#ifndef TARGET_ULONG
-#define TARGET_ULONG uintptr_t
-#endif
-
 #define HIGH_SHADOW_ADDR ((void*)0x02008fff7000ULL)
 #define LOW_SHADOW_ADDR ((void*)0x00007fff8000ULL)
 
@@ -77,7 +73,7 @@ enum {
 
 struct call_context {
 
-  TARGET_ULONG* addresses;
+  target_ulong* addresses;
   uint16_t      size;
   uint16_t      tid;
 
@@ -85,8 +81,8 @@ struct call_context {
 
 struct chunk_info {
 
-  TARGET_ULONG         start;
-  TARGET_ULONG         end;
+  target_ulong         start;
+  target_ulong         end;
   struct call_context* alloc_ctx;
   struct call_context* free_ctx;  // NULL if chunk is allocated
 
@@ -95,8 +91,18 @@ struct chunk_info {
 extern void* __ag_high_shadow;
 extern void* __ag_low_shadow;
 
-void  asan_giovese_populate_context(struct call_context* ctx, TARGET_ULONG pc);
-char* asan_giovese_printaddr(TARGET_ULONG guest_addr);
+// ------------------------------------------------------------------------- //
+// Virtual functions, you have to implement them
+// ------------------------------------------------------------------------- //
+
+///////////////////////////////////////////////////////////////////////////////
+void  asan_giovese_populate_context(struct call_context* ctx, target_ulong pc);
+char* asan_giovese_printaddr(target_ulong guest_addr);
+///////////////////////////////////////////////////////////////////////////////
+
+// ------------------------------------------------------------------------- //
+// Exposed functions
+// ------------------------------------------------------------------------- //
 
 void asan_giovese_init(void);
 
@@ -117,11 +123,11 @@ void asan_giovese_user_poison_region(void const volatile* addr, size_t n);
 void asan_giovese_unpoison_region(void const volatile* addr, size_t n);
 
 void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
-                                   TARGET_ULONG guest_addr, TARGET_ULONG pc,
-                                   TARGET_ULONG bp, TARGET_ULONG sp);
+                                   target_ulong guest_addr, target_ulong pc,
+                                   target_ulong bp, target_ulong sp);
 
-struct chunk_info* asan_giovese_alloc_search(TARGET_ULONG query);
-void asan_giovese_alloc_insert(TARGET_ULONG start, TARGET_ULONG end,
+struct chunk_info* asan_giovese_alloc_search(target_ulong query);
+void asan_giovese_alloc_insert(target_ulong start, target_ulong end,
                                struct call_context* alloc_ctx);
 
 #endif
