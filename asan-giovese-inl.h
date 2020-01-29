@@ -294,14 +294,7 @@ void asan_giovese_poison_region(void const volatile* addr, size_t n,
     uintptr_t next_8 = (start & ~7) + 8;
     size_t    first_size = next_8 - start;
 
-    if (n < first_size) {
-
-      // this lead to false positives
-      // uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-      // *shadow_addr = 8 - n;
-      return;
-
-    }
+    if (n < first_size) return;
 
     uint8_t* shadow_addr = (uint8_t*)((uintptr_t)start >> 3) + SHADOW_OFFSET;
     *shadow_addr = 8 - first_size;
@@ -317,14 +310,6 @@ void asan_giovese_poison_region(void const volatile* addr, size_t n,
     start += 8;
 
   }
-
-  /* if (last_8 != end) {  // TODO
-
-    size_t last_size = end - last_8;
-    uint8_t*  shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-    *shadow_addr = last_size;
-
-  }*/
 
 }
 
