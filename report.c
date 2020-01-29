@@ -331,7 +331,7 @@ void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
                                    TARGET_ULONG bp, TARGET_ULONG sp) {
 
   struct call_context ctx;
-  asan_giovese_populate_context(&ctx);
+  asan_giovese_populate_context(&ctx, pc);
   void*       fault_addr = NULL;
   const char* error_type = poisoned_find_error(addr, n, &fault_addr);
 

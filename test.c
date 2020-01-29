@@ -8,7 +8,7 @@ TARGET_ULONG get_pc() {
 
 }
 
-void asan_giovese_populate_context(struct call_context* ctx) {
+void asan_giovese_populate_context(struct call_context* ctx, TARGET_ULONG pc) {
 
   ctx->addresses = calloc(sizeof(void*), 16);
   int i;
@@ -87,7 +87,7 @@ int main() {
   asan_giovese_poison_region(&data[16 + 10], 16 + 6, ASAN_HEAP_RIGHT_RZ);
 
   struct call_context* ctx = calloc(sizeof(struct call_context), 1);
-  asan_giovese_populate_context(ctx);
+  asan_giovese_populate_context(ctx, 0);
   asan_giovese_alloc_insert((TARGET_ULONG)&data[16],
                             (TARGET_ULONG)&data[16 + 10], ctx);
 
@@ -97,7 +97,7 @@ int main() {
   if (ckinfo) {
 
     ckinfo->free_ctx = calloc(sizeof(struct call_context), 1);
-    asan_giovese_populate_context(ckinfo->free_ctx);
+    asan_giovese_populate_context(ckinfo->free_ctx, 0);
 
   }
 
