@@ -9,13 +9,13 @@
 #define TARGET_ULONG uintptr_t
 #endif
 
-#define HIGH_SHADOW_ADDR ((void*)0x02008fff7000LL)
-#define LOW_SHADOW_ADDR ((void*)0x00007fff8000LL)
+#define HIGH_SHADOW_ADDR ((void*)0x02008fff7000ULL)
+#define LOW_SHADOW_ADDR ((void*)0x00007fff8000ULL)
 
-#define HIGH_SHADOW_SIZE (0xdfff0000fff)
-#define LOW_SHADOW_SIZE (0xfffefff)
+#define HIGH_SHADOW_SIZE (0xdfff0000fffULL)
+#define LOW_SHADOW_SIZE (0xfffefffULL)
 
-#define SHADOW_OFFSET (0x7fff8000)
+#define SHADOW_OFFSET (0x7fff8000ULL)
 
 /* shadow map byte values */
 #define ASAN_VALID 0x00
@@ -60,7 +60,7 @@ struct chunk_info {
   TARGET_ULONG         start;
   TARGET_ULONG         end;
   struct call_context* alloc_ctx;
-  struct call_context* free_ctx; // NULL if chunk is allocated
+  struct call_context* free_ctx;  // NULL if chunk is allocated
 
 };
 

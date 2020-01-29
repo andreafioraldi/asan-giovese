@@ -17,7 +17,9 @@ int asan_giovese_populate_context(struct call_context* ctx) {
   for (i = 0; i < 16; ++i) {
 
     switch (i) {
-      #define _RA_CASE(x) case x: ctx->addresses[i] = __builtin_return_address(x); break;
+\
+#define _RA_CASE(x) \
+  case x: ctx->addresses[i] = __builtin_return_address(x); break;
       _RA_CASE(0)
       _RA_CASE(1)
       _RA_CASE(2)
@@ -34,6 +36,7 @@ int asan_giovese_populate_context(struct call_context* ctx) {
       _RA_CASE(13)
       _RA_CASE(14)
       _RA_CASE(15)
+
     }
 
     if (ctx->addresses[i] && (uintptr_t)ctx->addresses[i] < 0x7fffffffffff)
@@ -86,12 +89,14 @@ int main() {
   struct call_context* ctx = calloc(sizeof(struct call_context), 1);
   asan_giovese_populate_context(ctx);
   asan_giovese_alloc_insert(&data[16], &data[16 + 10], ctx);
-  
+
   asan_giovese_poison_region(&data[16], 16, ASAN_HEAP_FREED);
   struct chunk_info* ckinfo = asan_giovese_alloc_search(&data[16]);
   if (ckinfo) {
+
     ckinfo->free_ctx = calloc(sizeof(struct call_context), 1);
     asan_giovese_populate_context(ckinfo->free_ctx);
+
   }
 
   void*          pc = get_pc();

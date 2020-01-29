@@ -19,10 +19,15 @@ struct alloc_tree_node {
 #define START(node) ((node)->ckinfo.start)
 #define LAST(node) ((node)->ckinfo.end)
 
-static void alloc_tree_insert(struct alloc_tree_node *node, struct rb_root *root);
-static void alloc_tree_remove(struct alloc_tree_node *node, struct rb_root *root);
-static struct alloc_tree_node *alloc_tree_iter_first(struct rb_root *root, TARGET_ULONG start, TARGET_ULONG last);
-static struct alloc_tree_node *alloc_tree_iter_next(struct alloc_tree_node *node, TARGET_ULONG start, TARGET_ULONG last);
+static void                    alloc_tree_insert(struct alloc_tree_node *node,
+                                                 struct rb_root *        root);
+static void                    alloc_tree_remove(struct alloc_tree_node *node,
+                                                 struct rb_root *        root);
+static struct alloc_tree_node *alloc_tree_iter_first(struct rb_root *root,
+                                                     TARGET_ULONG    start,
+                                                     TARGET_ULONG    last);
+static struct alloc_tree_node *alloc_tree_iter_next(
+    struct alloc_tree_node *node, TARGET_ULONG start, TARGET_ULONG last);
 
 INTERVAL_TREE_DEFINE(struct alloc_tree_node, rb, TARGET_ULONG, __subtree_last,
                      START, LAST, static, alloc_tree)

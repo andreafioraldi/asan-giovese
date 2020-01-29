@@ -193,8 +193,6 @@ void asan_giovese_poison_region(void const volatile* addr, size_t n,
   }
 
   while (start < last_8) {
-  
-    
 
     uint8_t* shadow_addr = (uint8_t*)((uintptr_t)start >> 3) + SHADOW_OFFSET;
     *shadow_addr = poison_byte;
@@ -220,7 +218,7 @@ void asan_giovese_user_poison_region(void const volatile* addr, size_t n) {
 
 void asan_giovese_unpoison_region(void const volatile* addr, size_t n) {
 
-  int8_t*  shadow_addr;
+  int8_t*   shadow_addr;
   uintptr_t start = (uintptr_t)addr;
   uintptr_t end = start + n;
 

@@ -75,16 +75,19 @@ static const char* poisoned_find_error(void* addr, size_t n,
 
 }
 
-static void print_shadow_line(uint8_t* shadow_addr) {
-
-  /*uintptr_t a = (uintptr_t)shadow_addr;
-  if (!((a >= (uintptr_t)__ag_high_shadow && a < ((uintptr_t)__ag_high_shadow +
-  HIGH_SHADOW_ADDR))
-      || (a >= (uintptr_t) __ag_low_shadow && a < ((uintptr_t)__ag_low_shadow +
-  LOW_SHADOW_ADDR)))) return;*/
+static int is_a_shadow_addr(uint8_t* shadow_addr) {
 
   uintptr_t a = (uintptr_t)shadow_addr;
-  if (a < (uintptr_t)__ag_low_shadow) return;
+  return (a >= (uintptr_t)__ag_high_shadow &&
+          a < ((uintptr_t)__ag_high_shadow + HIGH_SHADOW_SIZE)) ||
+         (a >= (uintptr_t)__ag_low_shadow &&
+          a < ((uintptr_t)__ag_low_shadow + LOW_SHADOW_SIZE));
+
+}
+
+static void print_shadow_line(uint8_t* shadow_addr) {
+
+  if (!is_a_shadow_addr(shadow_addr)) return;
 
   fprintf(stderr,
           "  0x%012" PRIxPTR
@@ -101,14 +104,7 @@ static void print_shadow_line(uint8_t* shadow_addr) {
 static void print_shadow_line_fault(uint8_t* shadow_addr,
                                     uint8_t* shadow_fault_addr) {
 
-  /*uintptr_t a = (uintptr_t)shadow_addr;
-  if (!((a >= (uintptr_t)__ag_high_shadow && a < ((uintptr_t)__ag_high_shadow +
-  HIGH_SHADOW_ADDR))
-      || (a >= (uintptr_t) __ag_low_shadow && a < ((uintptr_t)__ag_low_shadow +
-  LOW_SHADOW_ADDR)))) return;*/
-
-  uintptr_t a = (uintptr_t)shadow_addr;
-  if (a < (uintptr_t)__ag_low_shadow) return;
+  if (!is_a_shadow_addr(shadow_addr)) return;
 
   int         i = shadow_fault_addr - shadow_addr;
   const char* format = "=>0x%012" PRIxPTR
@@ -223,37 +219,56 @@ static void print_shadow(uint8_t* shadow_addr) {
 
 }
 
-static void print_alloc_location_chunk(struct chunk_info* ckinfo, TARGET_ULONG fault_addr) {
+static void print_alloc_location_chunk(struct chunk_info* ckinfo,
+                                       TARGET_ULONG       fault_addr) {
 
   if (fault_addr >= ckinfo->start && fault_addr < ckinfo->end)
-    fprintf(stderr, "0x%012" PRIxPTR " is located %ld bytes inside of %ld-byte region [0x%012" PRIxPTR ",0x%012" PRIxPTR ")\n",
-                  fault_addr, fault_addr - ckinfo->start, ckinfo->end - ckinfo->start, ckinfo->start, ckinfo->end);
+    fprintf(stderr,
+            "0x%012" PRIxPTR
+            " is located %ld bytes inside of %ld-byte region [0x%012" PRIxPTR
+            ",0x%012" PRIxPTR ")\n",
+            fault_addr, fault_addr - ckinfo->start, ckinfo->end - ckinfo->start,
+            ckinfo->start, ckinfo->end);
   else if (ckinfo->start >= fault_addr)
-    fprintf(stderr, "0x%012" PRIxPTR " is located %ld bytes to the left of %ld-byte region [0x%012" PRIxPTR ",0x%012" PRIxPTR ")\n",
-                  fault_addr, ckinfo->start - fault_addr, ckinfo->end - ckinfo->start, ckinfo->start, ckinfo->end);
+    fprintf(
+        stderr,
+        "0x%012" PRIxPTR
+        " is located %ld bytes to the left of %ld-byte region [0x%012" PRIxPTR
+        ",0x%012" PRIxPTR ")\n",
+        fault_addr, ckinfo->start - fault_addr, ckinfo->end - ckinfo->start,
+        ckinfo->start, ckinfo->end);
   else
-    fprintf(stderr, "0x%012" PRIxPTR " is located %ld bytes to the right of %ld-byte region [0x%012" PRIxPTR ",0x%012" PRIxPTR ")\n",
-                    fault_addr, fault_addr - ckinfo->end, ckinfo->end - ckinfo->start, ckinfo->start, ckinfo->end);
+    fprintf(
+        stderr,
+        "0x%012" PRIxPTR
+        " is located %ld bytes to the right of %ld-byte region [0x%012" PRIxPTR
+        ",0x%012" PRIxPTR ")\n",
+        fault_addr, fault_addr - ckinfo->end, ckinfo->end - ckinfo->start,
+        ckinfo->start, ckinfo->end);
 
   if (ckinfo->free_ctx) {
-  
+
     fprintf(stderr, "freed by thread T%d here:\n", ckinfo->free_ctx->tid);
     size_t i;
     for (i = 0; i < ckinfo->free_ctx->size; ++i) {
 
       char* printable = asan_giovese_printaddr(ckinfo->free_ctx->addresses[i]);
       if (printable)
-        fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ckinfo->free_ctx->addresses[i],
-                printable);
+        fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i,
+                ckinfo->free_ctx->addresses[i], printable);
       else
-        fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ckinfo->free_ctx->addresses[i]);
+        fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i,
+                ckinfo->free_ctx->addresses[i]);
 
     }
+
     fputc('\n', stderr);
-  
-    fprintf(stderr, "previously allocated by thread T%d here:\n", ckinfo->free_ctx->tid);
-  
+
+    fprintf(stderr, "previously allocated by thread T%d here:\n",
+            ckinfo->free_ctx->tid);
+
   } else
+
     fprintf(stderr, "allocated by thread T%d here:\n", ckinfo->alloc_ctx->tid);
 
   size_t i;
@@ -261,12 +276,14 @@ static void print_alloc_location_chunk(struct chunk_info* ckinfo, TARGET_ULONG f
 
     char* printable = asan_giovese_printaddr(ckinfo->alloc_ctx->addresses[i]);
     if (printable)
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ckinfo->alloc_ctx->addresses[i],
-              printable);
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i,
+              ckinfo->alloc_ctx->addresses[i], printable);
     else
-      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ckinfo->alloc_ctx->addresses[i]);
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i,
+              ckinfo->alloc_ctx->addresses[i]);
 
   }
+
   fputc('\n', stderr);
 
 }
@@ -274,28 +291,33 @@ static void print_alloc_location_chunk(struct chunk_info* ckinfo, TARGET_ULONG f
 static void print_alloc_location(TARGET_ULONG addr, TARGET_ULONG fault_addr) {
 
   struct chunk_info* ckinfo = asan_giovese_alloc_search(fault_addr);
-  if (!ckinfo && addr != fault_addr)
-    ckinfo = asan_giovese_alloc_search(addr);
-  
+  if (!ckinfo && addr != fault_addr) ckinfo = asan_giovese_alloc_search(addr);
+
   if (ckinfo) {
+
     print_alloc_location_chunk(ckinfo, fault_addr);
     return;
+
   }
-  
+
   int i = 0;
   while (!ckinfo && i < 16)
     ckinfo = asan_giovese_alloc_search(fault_addr - (i++));
   if (ckinfo) {
+
     print_alloc_location_chunk(ckinfo, fault_addr);
     return;
+
   }
-  
+
   i = 0;
   while (!ckinfo && i < 16)
     ckinfo = asan_giovese_alloc_search(fault_addr + (i++));
   if (ckinfo) {
+
     print_alloc_location_chunk(ckinfo, fault_addr);
     return;
+
   }
 
   fprintf(stderr, "Address 0x%012" PRIxPTR " is a wild pointer.\n", fault_addr);
@@ -334,22 +356,7 @@ void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
 
   fputc('\n', stderr);
 
-  /*
-  0x602000000035 is located 0 bytes to the right of 5-byte region
-  [0x602000000030,0x602000000035) allocated by thread T0 here: #0 0x7f467ad86203
-  in BufferedStackTrace
-  /build/llvm-toolchain-8-bJQSSk/llvm-toolchain-8-8/projects/compiler-rt/lib/asan/../sanitizer_common/sanitizer_stacktrace.h:97:55
-      #1 0x7f467ad86203 in __qasan_malloc
-  /build/llvm-toolchain-8-bJQSSk/llvm-toolchain-8-8/projects/compiler-rt/lib/asan/asan_malloc_linux.cc:230
-      #2 0x562bb35002ce in qasan_actions_dispatcher
-  /home/andrea/Desktop/QASAN/qemu/accel/tcg/tcg-runtime.c:236:29
-
-  SUMMARY: AddressSanitizer: heap-buffer-overflow
-  (/home/andrea/Desktop/QASAN/qasan-qemu+0x728973) in _fini
-  */
-
   TARGET_ULONG guest_fault_addr = guest_addr + (fault_addr - addr);
-
   print_alloc_location(guest_addr, guest_fault_addr);
 
   char* printable_pc = asan_giovese_printaddr(pc);
