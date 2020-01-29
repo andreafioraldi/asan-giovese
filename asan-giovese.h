@@ -97,7 +97,7 @@ extern void* __ag_low_shadow;
 
 ///////////////////////////////////////////////////////////////////////////////
 void  asan_giovese_populate_context(struct call_context* ctx, target_ulong pc);
-char* asan_giovese_printaddr(target_ulong guest_addr);
+char* asan_giovese_printaddr(target_ulong addr);
 ///////////////////////////////////////////////////////////////////////////////
 
 // ------------------------------------------------------------------------- //
@@ -106,25 +106,25 @@ char* asan_giovese_printaddr(target_ulong guest_addr);
 
 void asan_giovese_init(void);
 
-int asan_giovese_load1(void* addr);
-int asan_giovese_load2(void* addr);
-int asan_giovese_load4(void* addr);
-int asan_giovese_load8(void* addr);
-int asan_giovese_store1(void* addr);
-int asan_giovese_store2(void* addr);
-int asan_giovese_store4(void* addr);
-int asan_giovese_store8(void* addr);
-int asan_giovese_loadN(void* addr, size_t n);
-int asan_giovese_storeN(void* addr, size_t n);
+int asan_giovese_load1(target_ulong addr);
+int asan_giovese_load2(target_ulong addr);
+int asan_giovese_load4(target_ulong addr);
+int asan_giovese_load8(target_ulong addr);
+int asan_giovese_store1(target_ulong addr);
+int asan_giovese_store2(target_ulong addr);
+int asan_giovese_store4(target_ulong addr);
+int asan_giovese_store8(target_ulong addr);
+int asan_giovese_loadN(target_ulong addr, size_t n);
+int asan_giovese_storeN(target_ulong addr, size_t n);
 
-void asan_giovese_poison_region(void const volatile* addr, size_t n,
+void asan_giovese_poison_region(target_ulong addr, size_t n,
                                 uint8_t poison_byte);
-void asan_giovese_user_poison_region(void const volatile* addr, size_t n);
-void asan_giovese_unpoison_region(void const volatile* addr, size_t n);
+void asan_giovese_user_poison_region(target_ulong addr, size_t n);
+void asan_giovese_unpoison_region(target_ulong addr, size_t n);
 
-void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
-                                   target_ulong guest_addr, target_ulong pc,
-                                   target_ulong bp, target_ulong sp);
+void asan_giovese_report_and_crash(int access_type, target_ulong gaddr,
+                                   size_t n, target_ulong pc, target_ulong bp,
+                                   target_ulong sp);
 
 struct chunk_info* asan_giovese_alloc_search(target_ulong query);
 void asan_giovese_alloc_insert(target_ulong start, target_ulong end,

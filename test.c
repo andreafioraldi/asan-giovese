@@ -24,11 +24,11 @@ void asan_giovese_populate_context(struct call_context* ctx, target_ulong pc) {
   ctx->size = 1;
   ctx->tid = 0;
   ctx->addresses[0] = pc;
-  
+
   for (i = 1; i < 16; ++i) {
 
-    switch (i-1) {
-
+    switch (i - 1) {
+\
 #define _RA_CASE(x) \
   case x: ctx->addresses[i] = (target_ulong)__builtin_return_address(x); break;
       _RA_CASE(0)
@@ -93,15 +93,16 @@ int main() {
 
   asan_giovese_init();
 
-  asan_giovese_poison_region(data, 16, ASAN_HEAP_LEFT_RZ);
-  asan_giovese_poison_region(&data[16 + 10], 16 + 6, ASAN_HEAP_RIGHT_RZ);
+  asan_giovese_poison_region((target_ulong)data, 16, ASAN_HEAP_LEFT_RZ);
+  asan_giovese_poison_region((target_ulong)&data[16 + 10], 16 + 6,
+                             ASAN_HEAP_RIGHT_RZ);
 
   struct call_context* ctx = calloc(sizeof(struct call_context), 1);
   asan_giovese_populate_context(ctx, get_pc());
   asan_giovese_alloc_insert((target_ulong)&data[16],
                             (target_ulong)&data[16 + 10], ctx);
 
-  asan_giovese_poison_region(&data[16], 16, ASAN_HEAP_FREED);
+  asan_giovese_poison_region((target_ulong)&data[16], 16, ASAN_HEAP_FREED);
   struct chunk_info* ckinfo =
       asan_giovese_alloc_search((target_ulong)&data[16]);
   if (ckinfo) {
@@ -119,9 +120,9 @@ int main() {
 
   printf("<test> accessing %p\n", &data[IDX]);
 
-  if (asan_giovese_loadN(&data[IDX], 11))
-    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, &data[IDX], 11,
-                                  (target_ulong)&data[IDX], pc, bp, sp);
+  if (asan_giovese_loadN((target_ulong)&data[IDX], 11))
+    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, (target_ulong)&data[IDX],
+                                  11, pc, bp, sp);
 
 }
 
