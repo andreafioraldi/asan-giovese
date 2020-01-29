@@ -3,7 +3,7 @@ LIBFILE = asan-giovese.a
 CC = gcc
 CFLAGS = -ggdb
 
-CFILES = alloc.c init.c poison.c report.c
+CFILES = asan-giovese.c
 HEADERS = asan-giovese.h
 
 objects = $(CFILES:.c=.o)
@@ -14,12 +14,14 @@ test: lib
 	$(CC) $(CFLAGS) test.c $(LIBFILE) -o test.bin
 
 .c.o:
-	$(CC) $(CFLAGS) -I interval-tree -c $< -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) -c $< -o $@ $(LDFLAGS)
 
 lib: $(objects)
-	$(AR) -crs $(LIBFILE) $(objects) 
+	make -C interval-tree
+	$(AR) -crs $(LIBFILE) $(objects) interval-tree/rbtree.o 
 
 $(objects): $(HEADERS)
 
 clean:
+	make -C interval-tree clean
 	rm -fr $(objects) test.bin $(LIBFILE)

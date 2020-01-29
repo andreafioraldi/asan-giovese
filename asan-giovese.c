@@ -1,8 +1,329 @@
 #include "asan-giovese.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <assert.h>
 
 #define DEFAULT_REDZONE_SIZE 32
+
+// ------------------------------------------------------------------------- //
+// Alloc
+// ------------------------------------------------------------------------- //
+
+#include "interval-tree/rbtree.h"
+#include "interval-tree/interval_tree_generic.h"
+
+// TODO use a mutex for locking insert/delete
+
+struct alloc_tree_node {
+
+  struct rb_node    rb;
+  struct chunk_info ckinfo;
+  TARGET_ULONG      __subtree_last;
+
+};
+
+#define START(node) ((node)->ckinfo.start)
+#define LAST(node) ((node)->ckinfo.end)
+
+INTERVAL_TREE_DEFINE(struct alloc_tree_node, rb, TARGET_ULONG, __subtree_last,
+                     START, LAST, static, alloc_tree)
+
+static struct rb_root root = RB_ROOT;
+
+struct chunk_info *asan_giovese_alloc_search(TARGET_ULONG query) {
+
+  struct alloc_tree_node *node = alloc_tree_iter_first(&root, query, query);
+  if (node) return &node->ckinfo;
+  return NULL;
+
+}
+
+void asan_giovese_alloc_insert(TARGET_ULONG start, TARGET_ULONG end,
+                               struct call_context *alloc_ctx) {
+
+  struct alloc_tree_node *prev_node = alloc_tree_iter_first(&root, start, end);
+  while (prev_node) {
+    
+    struct alloc_tree_node *n = alloc_tree_iter_next(prev_node, start, end);
+    free(prev_node->ckinfo.alloc_ctx);
+    free(prev_node->ckinfo.free_ctx);
+    alloc_tree_remove(prev_node, &root);
+    prev_node = n;
+  
+  }
+
+  struct alloc_tree_node *node = calloc(sizeof(struct alloc_tree_node), 1);
+  node->ckinfo.start = start;
+  node->ckinfo.end = end;
+  node->ckinfo.alloc_ctx = alloc_ctx;
+  alloc_tree_insert(node, &root);
+
+}
+
+// ------------------------------------------------------------------------- //
+// Init
+// ------------------------------------------------------------------------- //
+
+void* __ag_high_shadow = HIGH_SHADOW_ADDR;
+void* __ag_low_shadow = LOW_SHADOW_ADDR;
+
+void asan_giovese_init(void) {
+
+  assert(mmap(__ag_high_shadow, HIGH_SHADOW_SIZE, PROT_READ | PROT_WRITE,
+              MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE | MAP_ANON, -1,
+              0) != MAP_FAILED);
+  assert(mmap(__ag_low_shadow, LOW_SHADOW_SIZE, PROT_READ | PROT_WRITE,
+              MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE | MAP_ANON, -1,
+              0) != MAP_FAILED);
+
+}
+
+// ------------------------------------------------------------------------- //
+// Checks
+// ------------------------------------------------------------------------- //
+
+int asan_giovese_load1(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 1) > k;
+
+}
+
+int asan_giovese_load2(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 2) > k;
+
+}
+
+int asan_giovese_load4(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 4) > k;
+
+}
+
+int asan_giovese_load8(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  return (*shadow_addr);
+
+}
+
+int asan_giovese_store1(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 1) > k;
+
+}
+
+int asan_giovese_store2(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 2) > k;
+
+}
+
+int asan_giovese_store4(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 4) > k;
+
+}
+
+int asan_giovese_store8(void* addr) {
+
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  return (*shadow_addr);
+
+}
+
+int asan_giovese_loadN(void* addr, size_t n) {
+
+  if (!n) return 0;
+
+  uintptr_t start = (uintptr_t)addr;
+  uintptr_t end = start + n;
+  uintptr_t last_8 = end & ~7;
+
+  if (start & 0x7) {
+
+    uintptr_t next_8 = (start & ~7) + 8;
+    size_t    first_size = next_8 - start;
+
+    if (n <= first_size) {
+
+      int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+      int8_t  k = *shadow_addr;
+      return k != 0 && ((intptr_t)((start & 7) + n) > k);
+
+    }
+
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    if (k != 0 && ((intptr_t)((start & 7) + first_size) > k)) return 1;
+
+    start = next_8;
+
+  }
+
+  while (start < last_8) {
+
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    if (*shadow_addr) return 1;
+    start += 8;
+
+  }
+
+  if (last_8 != end) {
+
+    size_t  last_size = end - last_8;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    return k != 0 && ((intptr_t)((start & 7) + last_size) > k);
+
+  }
+
+  return 0;
+
+}
+
+int asan_giovese_storeN(void* addr, size_t n) {
+
+  if (!n) return 0;
+
+  uintptr_t start = (uintptr_t)addr;
+  uintptr_t end = start + n;
+  uintptr_t last_8 = end & ~7;
+
+  if (start & 0x7) {
+
+    uintptr_t next_8 = (start & ~7) + 8;
+    size_t    first_size = next_8 - start;
+
+    if (n <= first_size) {
+
+      int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+      int8_t  k = *shadow_addr;
+      return k != 0 && ((intptr_t)((start & 7) + n) > k);
+
+    }
+
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    if (k != 0 && ((intptr_t)((start & 7) + first_size) > k)) return 1;
+
+    start = next_8;
+
+  }
+
+  while (start < last_8) {
+
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    if (*shadow_addr) return 1;
+    start += 8;
+
+  }
+
+  if (last_8 != end) {
+
+    size_t  last_size = end - last_8;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    return k != 0 && ((intptr_t)((start & 7) + last_size) > k);
+
+  }
+
+  return 0;
+
+}
+
+// ------------------------------------------------------------------------- //
+// Poison
+// ------------------------------------------------------------------------- //
+
+void asan_giovese_poison_region(void const volatile* addr, size_t n,
+                                uint8_t poison_byte) {
+
+  if (!n) return;
+
+  uintptr_t start = (uintptr_t)addr;
+  uintptr_t end = start + n;
+  uintptr_t last_8 = end & ~7;
+
+  if (start & 0x7) {
+
+    uintptr_t next_8 = (start & ~7) + 8;
+    size_t    first_size = next_8 - start;
+
+    if (n < first_size) {
+
+      // this lead to false positives
+      // uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
+      // *shadow_addr = 8 - n;
+      return;
+
+    }
+
+    uint8_t* shadow_addr = (uint8_t*)((uintptr_t)start >> 3) + SHADOW_OFFSET;
+    *shadow_addr = 8 - first_size;
+
+    start = next_8;
+
+  }
+
+  while (start < last_8) {
+
+    uint8_t* shadow_addr = (uint8_t*)((uintptr_t)start >> 3) + SHADOW_OFFSET;
+    *shadow_addr = poison_byte;
+    start += 8;
+
+  }
+
+  /* if (last_8 != end) {  // TODO
+
+    size_t last_size = end - last_8;
+    uint8_t*  shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
+    *shadow_addr = last_size;
+
+  }*/
+
+}
+
+void asan_giovese_user_poison_region(void const volatile* addr, size_t n) {
+
+  asan_giovese_poison_region(addr, n, ASAN_USER);
+
+}
+
+void asan_giovese_unpoison_region(void const volatile* addr, size_t n) {
+
+  uintptr_t start = (uintptr_t)addr;
+  uintptr_t end = start + n;
+
+  while (start < end) {
+
+    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
+    *shadow_addr = 0;
+    start += 8;
+
+  }
+
+}
+
+// ------------------------------------------------------------------------- //
+// Report
+// ------------------------------------------------------------------------- //
 
 static const char* access_type_str[] = {"READ", "WRITE"};
 
