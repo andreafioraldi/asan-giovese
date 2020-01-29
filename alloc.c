@@ -19,24 +19,19 @@ struct alloc_tree_node {
 #define START(node) ((node)->ckinfo.start)
 #define LAST(node) ((node)->ckinfo.end)
 
-void alloc_tree_insert(struct alloc_tree_node *node, struct rb_root *root);
-void alloc_tree_remove(struct alloc_tree_node *node, struct rb_root *root);
-struct alloc_tree_node *alloc_tree_iter_first(struct rb_root *root,
-                                              TARGET_ULONG    start,
-                                              TARGET_ULONG    last);
-struct alloc_tree_node *alloc_tree_iter_next(struct alloc_tree_node *node,
-                                             TARGET_ULONG            start,
-                                             TARGET_ULONG            last);
+static void alloc_tree_insert(struct alloc_tree_node *node, struct rb_root *root);
+static void alloc_tree_remove(struct alloc_tree_node *node, struct rb_root *root);
+static struct alloc_tree_node *alloc_tree_iter_first(struct rb_root *root, TARGET_ULONG start, TARGET_ULONG last);
+static struct alloc_tree_node *alloc_tree_iter_next(struct alloc_tree_node *node, TARGET_ULONG start, TARGET_ULONG last);
 
 INTERVAL_TREE_DEFINE(struct alloc_tree_node, rb, TARGET_ULONG, __subtree_last,
-                     START, LAST, , alloc_tree)
+                     START, LAST, static, alloc_tree)
 
 static struct rb_root root = RB_ROOT;
 
 struct chunk_info *asan_giovese_alloc_search(TARGET_ULONG query) {
 
-  struct alloc_tree_node *node;
-  node = alloc_tree_iter_first(&root, query, query);
+  struct alloc_tree_node *node = alloc_tree_iter_first(&root, query, query);
   if (node) return &node->ckinfo;
   return NULL;
 
@@ -47,7 +42,7 @@ void asan_giovese_alloc_insert(TARGET_ULONG start, TARGET_ULONG end,
 
   struct alloc_tree_node *node = calloc(sizeof(struct alloc_tree_node), 1);
   node->ckinfo.start = start;
-  node->ckinfo.start = end;
+  node->ckinfo.end = end;
   node->ckinfo.alloc_ctx = alloc_ctx;
   alloc_tree_insert(node, &root);
 

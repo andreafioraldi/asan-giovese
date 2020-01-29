@@ -2,62 +2,62 @@
 
 int asan_giovese_load1(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
-  uint8_t  k = *shadow_addr;
-  return (k != 0 && (((uintptr_t)addr & 7) + 1 > k));
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 1) > k;
 
 }
 
 int asan_giovese_load2(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
-  uint8_t  k = *shadow_addr;
-  return (k != 0 && (((uintptr_t)addr & 7) + 2 > k));
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 2) > k;
 
 }
 
 int asan_giovese_load4(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
-  uint8_t  k = *shadow_addr;
-  return (k != 0 && (((uintptr_t)addr & 7) + 4 > k));
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 4) > k;
 
 }
 
 int asan_giovese_load8(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
   return (*shadow_addr);
 
 }
 
 int asan_giovese_store1(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
-  uint8_t  k = *shadow_addr;
-  return (k != 0 && (((uintptr_t)addr & 7) + 1 > k));
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 1) > k;
 
 }
 
 int asan_giovese_store2(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
-  uint8_t  k = *shadow_addr;
-  return (k != 0 && (((uintptr_t)addr & 7) + 2 > k));
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 2) > k;
 
 }
 
 int asan_giovese_store4(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
-  uint8_t  k = *shadow_addr;
-  return (k != 0 && (((uintptr_t)addr & 7) + 4 > k));
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t  k = *shadow_addr;
+  return k != 0 && (intptr_t)(((uintptr_t)addr & 7) + 4) > k;
 
 }
 
 int asan_giovese_store8(void* addr) {
 
-  uint8_t* shadow_addr = (uint8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
+  int8_t* shadow_addr = (int8_t*)((uintptr_t)addr >> 3) + SHADOW_OFFSET;
   return (*shadow_addr);
 
 }
@@ -77,15 +77,15 @@ int asan_giovese_loadN(void* addr, size_t n) {
 
     if (n <= first_size) {
 
-      uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-      uint8_t  k = *shadow_addr;
-      return k != 0 && ((start & 7) + n > k);
+      int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+      int8_t  k = *shadow_addr;
+      return k != 0 && ((intptr_t)((start & 7) + n) > k);
 
     }
 
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-    uint8_t  k = *shadow_addr;
-    if (k != 0 && ((start & 7) + first_size > k)) return 1;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    if (k != 0 && ((intptr_t)((start & 7) + first_size) > k)) return 1;
 
     start = next_8;
 
@@ -93,7 +93,7 @@ int asan_giovese_loadN(void* addr, size_t n) {
 
   while (start < last_8) {
 
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
     if (*shadow_addr) return 1;
     start += 8;
 
@@ -101,10 +101,10 @@ int asan_giovese_loadN(void* addr, size_t n) {
 
   if (last_8 != end) {
 
-    size_t   last_size = end - last_8;
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-    uint8_t  k = *shadow_addr;
-    return k != 0 && ((start & 7) + last_size > k);
+    size_t  last_size = end - last_8;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    return k != 0 && ((intptr_t)((start & 7) + last_size) > k);
 
   }
 
@@ -127,15 +127,15 @@ int asan_giovese_storeN(void* addr, size_t n) {
 
     if (n <= first_size) {
 
-      uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-      uint8_t  k = *shadow_addr;
-      return k != 0 && ((start & 7) + n > k);
+      int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+      int8_t  k = *shadow_addr;
+      return k != 0 && ((intptr_t)((start & 7) + n) > k);
 
     }
 
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-    uint8_t  k = *shadow_addr;
-    if (k != 0 && ((start & 7) + first_size > k)) return 1;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    if (k != 0 && ((intptr_t)((start & 7) + first_size) > k)) return 1;
 
     start = next_8;
 
@@ -143,7 +143,7 @@ int asan_giovese_storeN(void* addr, size_t n) {
 
   while (start < last_8) {
 
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
     if (*shadow_addr) return 1;
     start += 8;
 
@@ -151,10 +151,10 @@ int asan_giovese_storeN(void* addr, size_t n) {
 
   if (last_8 != end) {
 
-    size_t   last_size = end - last_8;
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
-    uint8_t  k = *shadow_addr;
-    return k != 0 && ((start & 7) + last_size > k);
+    size_t  last_size = end - last_8;
+    int8_t* shadow_addr = (int8_t*)(start >> 3) + SHADOW_OFFSET;
+    int8_t  k = *shadow_addr;
+    return k != 0 && ((intptr_t)((start & 7) + last_size) > k);
 
   }
 
@@ -185,7 +185,7 @@ void asan_giovese_poison_region(void const volatile* addr, size_t n,
 
     }
 
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
+    uint8_t* shadow_addr = (uint8_t*)((uintptr_t)start >> 3) + SHADOW_OFFSET;
     *shadow_addr = 8 - first_size;
 
     start = next_8;
@@ -193,8 +193,10 @@ void asan_giovese_poison_region(void const volatile* addr, size_t n,
   }
 
   while (start < last_8) {
+  
+    
 
-    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
+    uint8_t* shadow_addr = (uint8_t*)((uintptr_t)start >> 3) + SHADOW_OFFSET;
     *shadow_addr = poison_byte;
     start += 8;
 
@@ -218,7 +220,7 @@ void asan_giovese_user_poison_region(void const volatile* addr, size_t n) {
 
 void asan_giovese_unpoison_region(void const volatile* addr, size_t n) {
 
-  uint8_t*  shadow_addr;
+  int8_t*  shadow_addr;
   uintptr_t start = (uintptr_t)addr;
   uintptr_t end = start + n;
 

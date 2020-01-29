@@ -1,5 +1,5 @@
-#ifndef asan_giovese_GIOVESE_H__
-#define asan_giovese_GIOVESE_H__
+#ifndef __ASAN_GIOVESE_H__
+#define __ASAN_GIOVESE_H__
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -60,7 +60,7 @@ struct chunk_info {
   TARGET_ULONG         start;
   TARGET_ULONG         end;
   struct call_context* alloc_ctx;
-  struct call_context* free_ctx;
+  struct call_context* free_ctx; // NULL if chunk is allocated
 
 };
 
