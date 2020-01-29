@@ -1,4 +1,5 @@
 #include "asan-giovese.h"
+#include "pmparser.h"
 #include <stdio.h>
 
 void* get_pc() {
@@ -12,6 +13,7 @@ int asan_giovese_populate_context(struct call_context* ctx) {
   ctx->addresses = calloc(sizeof(void*), 16);
   int i;
   ctx->size = 0;
+  ctx->tid = 0;
   for (i = 0; i < 16; ++i) {
 
     switch (i) {
@@ -44,20 +46,59 @@ int asan_giovese_populate_context(struct call_context* ctx) {
 
 }
 
+char* asan_giovese_printaddr(TARGET_ULONG guest_addr) {
+
+  procmaps_iterator* maps = pmparser_parse(-1);
+  procmaps_struct*   maps_tmp = NULL;
+
+  uintptr_t a = (uintptr_t)guest_addr;
+
+  while ((maps_tmp = pmparser_next(maps)) != NULL) {
+
+    if (a >= (uintptr_t)maps_tmp->addr_start &&
+        a < (uintptr_t)maps_tmp->addr_end) {
+
+      size_t l = strlen(maps_tmp->pathname) + 32;
+      char*  s = malloc(l);
+      snprintf(s, l, " (%s+0x%lx)", maps_tmp->pathname,
+               a - (uintptr_t)maps_tmp->addr_start);
+
+      pmparser_free(maps);
+      return s;
+
+    }
+
+  }
+
+  pmparser_free(maps);
+  return NULL;
+
+}
+
 char data[1000];
 
 int main() {
 
   asan_giovese_init();
 
-  asan_giovese_poison_region(data, 16, ASAN_HEAP_FREED);
+  asan_giovese_poison_region(data, 16, ASAN_HEAP_LEFT_RZ);
+  asan_giovese_poison_region(&data[16 + 10], 16 + 6, ASAN_HEAP_RIGHT_RZ);
+
+  struct call_context* ctx = calloc(sizeof(struct call_context), 1);
+  asan_giovese_populate_context(ctx);
+  asan_giovese_alloc_insert(&data[16], &data[16 + 10], ctx);
 
   void*          pc = get_pc();
   register void* sp asm("rsp");
   register void* bp asm("rbp");
 
-  if (asan_giovese_load8(&data[8]))
-    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, &data[8], 8, pc, bp, sp);
+  const int IDX = 16;
+
+  printf("<test> accessing %p\n", &data[IDX]);
+
+  if (asan_giovese_loadN(&data[IDX], 11))
+    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, &data[IDX], 11, &data[IDX],
+                                  pc, bp, sp);
 
 }
 

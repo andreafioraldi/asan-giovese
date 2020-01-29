@@ -5,6 +5,10 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#ifndef TARGET_ULONG
+#define TARGET_ULONG uintptr_t
+#endif
+
 #define HIGH_SHADOW_ADDR ((void*)0x02008fff7000LL)
 #define LOW_SHADOW_ADDR ((void*)0x00007fff8000LL)
 
@@ -36,8 +40,6 @@
 #define ASAN_HEAP_RIGHT_RZ 0xfb
 #define ASAN_HEAP_FREED 0xfd
 
-typedef uint8_t byte;
-
 enum {
 
   ACCESS_TYPE_LOAD,
@@ -47,15 +49,26 @@ enum {
 
 struct call_context {
 
-  size_t size;
-  void** addresses;
+  TARGET_ULONG* addresses;
+  uint16_t      size;
+  uint16_t      tid;
+
+};
+
+struct chunk_info {
+
+  TARGET_ULONG         start;
+  TARGET_ULONG         end;
+  struct call_context* alloc_ctx;
+  struct call_context* free_ctx;
 
 };
 
 extern void* __ag_high_shadow;
 extern void* __ag_low_shadow;
 
-int asan_giovese_populate_context(struct call_context* ctx);
+int   asan_giovese_populate_context(struct call_context* ctx);
+char* asan_giovese_printaddr(TARGET_ULONG guest_addr);
 
 void asan_giovese_init(void);
 
@@ -70,13 +83,18 @@ int asan_giovese_store8(void* addr);
 int asan_giovese_loadN(void* addr, size_t n);
 int asan_giovese_storeN(void* addr, size_t n);
 
-int asan_giovese_poison_region(void const volatile* addr, size_t n,
-                               byte poison_byte);
-int asan_giovese_user_poison_region(void const volatile* addr, size_t n);
-int asan_giovese_unpoison_region(void const volatile* addr, size_t n);
+void asan_giovese_poison_region(void const volatile* addr, size_t n,
+                                uint8_t poison_byte);
+void asan_giovese_user_poison_region(void const volatile* addr, size_t n);
+void asan_giovese_unpoison_region(void const volatile* addr, size_t n);
 
 void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
-                                   void* pc, void* bp, void* sp);
+                                   TARGET_ULONG guest_addr, TARGET_ULONG pc,
+                                   TARGET_ULONG bp, TARGET_ULONG sp);
+
+struct chunk_info* asan_giovese_alloc_search(TARGET_ULONG query);
+void asan_giovese_alloc_insert(TARGET_ULONG start, TARGET_ULONG end,
+                               struct call_context* alloc_ctx);
 
 #endif
 

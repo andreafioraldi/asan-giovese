@@ -1,11 +1,10 @@
 #include "asan-giovese.h"
-#include "pmparser.h"
 #include <stdio.h>
 #include <unistd.h>
 
-const char* access_type_str[] = {"READ", "WRITE"};
+static const char* access_type_str[] = {"READ", "WRITE"};
 
-const char* asan_giovese_strerror(byte poison_byte) {
+static const char* poisoned_strerror(uint8_t poison_byte) {
 
   switch (poison_byte) {
 
@@ -20,14 +19,16 @@ const char* asan_giovese_strerror(byte poison_byte) {
 
 }
 
-const char* asan_giovese_find_error(void* addr, size_t n, void** fault_addr) {
+static const char* poisoned_find_error(void* addr, size_t n,
+                                       void** fault_addr) {
 
   uintptr_t start = (uintptr_t)addr;
   uintptr_t end = start + n;
+  int       have_partials = 0;
 
   while (start < end) {
 
-    byte* shadow_addr = (byte*)(start >> 3) + SHADOW_OFFSET;
+    uint8_t* shadow_addr = (uint8_t*)(start >> 3) + SHADOW_OFFSET;
     switch (*shadow_addr) {
 
       case ASAN_VALID: break;
@@ -39,6 +40,7 @@ const char* asan_giovese_find_error(void* addr, size_t n, void** fault_addr) {
       case ASAN_PARTIAL6:
       case ASAN_PARTIAL7: {
 
+        have_partials = 1;
         uintptr_t a =
             (((uintptr_t)shadow_addr - SHADOW_OFFSET) << 3) + *shadow_addr;
         if (*fault_addr == NULL && a >= start && a < end)
@@ -50,7 +52,7 @@ const char* asan_giovese_find_error(void* addr, size_t n, void** fault_addr) {
       default: {
 
         if (*fault_addr == NULL) *fault_addr = (void*)start;
-        return asan_giovese_strerror(*shadow_addr);
+        return poisoned_strerror(*shadow_addr);
 
       }
 
@@ -60,17 +62,28 @@ const char* asan_giovese_find_error(void* addr, size_t n, void** fault_addr) {
 
   }
 
+  if (have_partials) {
+
+    uint8_t* last_shadow_addr = (uint8_t*)((end - 1) >> 3) + SHADOW_OFFSET;
+    uint8_t* out_shadow_addr = last_shadow_addr + 1;
+    return poisoned_strerror(*out_shadow_addr);
+
+  }
+
   return "use-after-poison";
 
 }
 
-static void __print_shadow_line(byte* shadow_addr) {
+static void print_shadow_line(uint8_t* shadow_addr) {
 
   /*uintptr_t a = (uintptr_t)shadow_addr;
   if (!((a >= (uintptr_t)__ag_high_shadow && a < ((uintptr_t)__ag_high_shadow +
   HIGH_SHADOW_ADDR))
       || (a >= (uintptr_t) __ag_low_shadow && a < ((uintptr_t)__ag_low_shadow +
   LOW_SHADOW_ADDR)))) return;*/
+
+  uintptr_t a = (uintptr_t)shadow_addr;
+  if (a < (uintptr_t)__ag_low_shadow) return;
 
   fprintf(stderr,
           "  0x%012" PRIxPTR
@@ -84,14 +97,17 @@ static void __print_shadow_line(byte* shadow_addr) {
 
 }
 
-static void __print_shadow_line_fault(byte* shadow_addr,
-                                      byte* shadow_fault_addr) {
+static void print_shadow_line_fault(uint8_t* shadow_addr,
+                                    uint8_t* shadow_fault_addr) {
 
   /*uintptr_t a = (uintptr_t)shadow_addr;
   if (!((a >= (uintptr_t)__ag_high_shadow && a < ((uintptr_t)__ag_high_shadow +
   HIGH_SHADOW_ADDR))
       || (a >= (uintptr_t) __ag_low_shadow && a < ((uintptr_t)__ag_low_shadow +
   LOW_SHADOW_ADDR)))) return;*/
+
+  uintptr_t a = (uintptr_t)shadow_addr;
+  if (a < (uintptr_t)__ag_low_shadow) return;
 
   int         i = shadow_fault_addr - shadow_addr;
   const char* format = "=>0x%012" PRIxPTR
@@ -189,72 +205,60 @@ static void __print_shadow_line_fault(byte* shadow_addr,
 
 }
 
-static void __print_shadow(byte* shadow_addr) {
+static void print_shadow(uint8_t* shadow_addr) {
 
   uintptr_t center = (uintptr_t)shadow_addr & ~15;
-  __print_shadow_line(center - 16 * 5);
-  __print_shadow_line(center - 16 * 4);
-  __print_shadow_line(center - 16 * 3);
-  __print_shadow_line(center - 16 * 2);
-  __print_shadow_line(center - 16);
-  __print_shadow_line_fault(center, shadow_addr);
-  __print_shadow_line(center + 16);
-  __print_shadow_line(center + 16 * 2);
-  __print_shadow_line(center + 16 * 3);
-  __print_shadow_line(center + 16 * 4);
-  __print_shadow_line(center + 16 * 5);
+  print_shadow_line(center - 16 * 5);
+  print_shadow_line(center - 16 * 4);
+  print_shadow_line(center - 16 * 3);
+  print_shadow_line(center - 16 * 2);
+  print_shadow_line(center - 16);
+  print_shadow_line_fault(center, shadow_addr);
+  print_shadow_line(center + 16);
+  print_shadow_line(center + 16 * 2);
+  print_shadow_line(center + 16 * 3);
+  print_shadow_line(center + 16 * 4);
+  print_shadow_line(center + 16 * 5);
 
 }
 
-static char* __get_addr_mapping(void* addr) {
+static void print_alloc_location(TARGET_ULONG addr, TARGET_ULONG fault_addr) {
 
-  procmaps_iterator* maps = pmparser_parse(-1);
-  procmaps_struct*   maps_tmp = NULL;
-
-  uintptr_t a = (uintptr_t)addr;
-
-  while ((maps_tmp = pmparser_next(maps)) != NULL) {
-
-    if (a >= (uintptr_t)maps_tmp->addr_start &&
-        a < (uintptr_t)maps_tmp->addr_end) {
-
-      size_t l = strlen(maps_tmp->pathname) + 32;
-      char*  s = malloc(l);
-      snprintf(s, l, " (%s+0x%lx)", maps_tmp->pathname,
-               a - (uintptr_t)maps_tmp->addr_start);
-
-      pmparser_free(maps);
-      return s;
-
-    }
-
-  }
-
-  pmparser_free(maps);
-  return strdup("");
+  fprintf(stderr, "Address 0x%012" PRIxPTR " is a wild pointer.\n", fault_addr);
 
 }
 
 void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
-                                   void* pc, void* bp, void* sp) {
+                                   TARGET_ULONG guest_addr, TARGET_ULONG pc,
+                                   TARGET_ULONG bp, TARGET_ULONG sp) {
 
   struct call_context ctx;
   asan_giovese_populate_context(&ctx);
-  void*       fault_addr;
-  const char* error_type = asan_giovese_find_error(addr, n, &fault_addr);
+  void*       fault_addr = NULL;
+  const char* error_type = poisoned_find_error(addr, n, &fault_addr);
 
-  fprintf(
-      stderr,
-      "=================================================================\n"
-      "==%d==ERROR: AddressSanitizer: %s on address %p at pc %p bp %p sp %p\n",
-      getpid(), error_type, addr, pc, bp, sp);
+  fprintf(stderr,
+          "=================================================================\n"
+          "==%d==ERROR: AddressSanitizer: %s on address 0x%012" PRIxPTR
+          " at pc 0x%012" PRIxPTR " bp 0x%012" PRIxPTR " sp 0x%012" PRIxPTR
+          "\n",
+          getpid(), error_type, guest_addr, pc, bp, sp);
 
-  fprintf(stderr, "%s of size %lu at %p thread T0\n",
-          access_type_str[access_type], n, addr);
+  fprintf(stderr, "%s of size %lu at 0x%012" PRIxPTR " thread T%d\n",
+          access_type_str[access_type], n, guest_addr, ctx.tid);
   size_t i;
-  for (i = 0; i < ctx.size; ++i)
-    fprintf(stderr, "    #%lu %p%s\n", i, ctx.addresses[i],
-            __get_addr_mapping(ctx.addresses[i]));
+  for (i = 0; i < ctx.size; ++i) {
+
+    char* printable = asan_giovese_printaddr(ctx.addresses[i]);
+    if (printable)
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ctx.addresses[i],
+              printable);
+    else
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ctx.addresses[i]);
+
+  }
+
+  fputc('\n', stderr);
 
   /*
   0x602000000035 is located 0 bytes to the right of 5-byte region
@@ -269,12 +273,19 @@ void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
   SUMMARY: AddressSanitizer: heap-buffer-overflow
   (/home/andrea/Desktop/QASAN/qasan-qemu+0x728973) in _fini
   */
+
+  TARGET_ULONG guest_fault_addr = guest_addr + (fault_addr - addr);
+
+  print_alloc_location(guest_addr, guest_fault_addr);
+
+  char* printable_pc = asan_giovese_printaddr(pc);
+  if (!printable_pc) printable_pc = "";
   fprintf(stderr,
           "SUMMARY: AddressSanitizer: %s%s\n"
           "Shadow bytes around the buggy address:\n",
-          error_type, __get_addr_mapping(pc));
+          error_type, printable_pc);
 
-  __print_shadow(((uintptr_t)fault_addr >> 3) + SHADOW_OFFSET);
+  print_shadow(((uintptr_t)fault_addr >> 3) + SHADOW_OFFSET);
 
   fprintf(
       stderr,
