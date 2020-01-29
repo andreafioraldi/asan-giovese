@@ -8,7 +8,7 @@ TARGET_ULONG get_pc() {
 
 }
 
-int asan_giovese_populate_context(struct call_context* ctx) {
+void asan_giovese_populate_context(struct call_context* ctx) {
 
   ctx->addresses = calloc(sizeof(void*), 16);
   int i;

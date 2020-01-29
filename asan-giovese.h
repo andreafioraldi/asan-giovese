@@ -67,7 +67,7 @@ struct chunk_info {
 extern void* __ag_high_shadow;
 extern void* __ag_low_shadow;
 
-int   asan_giovese_populate_context(struct call_context* ctx);
+void  asan_giovese_populate_context(struct call_context* ctx);
 char* asan_giovese_printaddr(TARGET_ULONG guest_addr);
 
 void asan_giovese_init(void);
