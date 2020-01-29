@@ -383,7 +383,7 @@ static const char* poisoned_find_error(target_ulong addr, size_t n,
 
   while (start < end) {
 
-    target_ulong rs = g2h(start);
+    uintptr_t rs = g2h(start);
     int8_t*      shadow_addr = (int8_t*)(rs >> 3) + SHADOW_OFFSET;
     switch (*shadow_addr) {
 
@@ -418,7 +418,7 @@ static const char* poisoned_find_error(target_ulong addr, size_t n,
 
   if (have_partials) {
 
-    target_ulong rs = g2h((end & ~7) + 8);
+    uintptr_t rs = g2h((end & ~7) + 8);
     uint8_t*     last_shadow_addr = (uint8_t*)(rs >> 3) + SHADOW_OFFSET;
     return poisoned_strerror(*last_shadow_addr);
 
@@ -429,7 +429,7 @@ static const char* poisoned_find_error(target_ulong addr, size_t n,
 
 }
 
-#define _MEM2SHADOW(x) ((uint8_t*)(g2h(x) >> 3) + SHADOW_OFFSET)
+#define _MEM2SHADOW(x) ((uint8_t*)((uintptr_t)g2h(x) >> 3) + SHADOW_OFFSET)
 
 static void print_shadow_line(target_ulong addr) {
 
