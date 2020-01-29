@@ -2,9 +2,9 @@
 #include "pmparser.h"
 #include <stdio.h>
 
-void* get_pc() {
+TARGET_ULONG get_pc() {
 
-  return __builtin_return_address(0);
+  return (TARGET_ULONG)__builtin_return_address(0);
 
 }
 
@@ -19,7 +19,7 @@ int asan_giovese_populate_context(struct call_context* ctx) {
     switch (i) {
 \
 #define _RA_CASE(x) \
-  case x: ctx->addresses[i] = __builtin_return_address(x); break;
+  case x: ctx->addresses[i] = (TARGET_ULONG)__builtin_return_address(x); break;
       _RA_CASE(0)
       _RA_CASE(1)
       _RA_CASE(2)
@@ -88,10 +88,12 @@ int main() {
 
   struct call_context* ctx = calloc(sizeof(struct call_context), 1);
   asan_giovese_populate_context(ctx);
-  asan_giovese_alloc_insert(&data[16], &data[16 + 10], ctx);
+  asan_giovese_alloc_insert((TARGET_ULONG)&data[16],
+                            (TARGET_ULONG)&data[16 + 10], ctx);
 
   asan_giovese_poison_region(&data[16], 16, ASAN_HEAP_FREED);
-  struct chunk_info* ckinfo = asan_giovese_alloc_search(&data[16]);
+  struct chunk_info* ckinfo =
+      asan_giovese_alloc_search((TARGET_ULONG)&data[16]);
   if (ckinfo) {
 
     ckinfo->free_ctx = calloc(sizeof(struct call_context), 1);
@@ -99,17 +101,17 @@ int main() {
 
   }
 
-  void*          pc = get_pc();
-  register void* sp asm("rsp");
-  register void* bp asm("rbp");
+  TARGET_ULONG          pc = get_pc();
+  register TARGET_ULONG sp asm("rsp");
+  register TARGET_ULONG bp asm("rbp");
 
   const int IDX = 18;
 
   printf("<test> accessing %p\n", &data[IDX]);
 
   if (asan_giovese_loadN(&data[IDX], 11))
-    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, &data[IDX], 11, &data[IDX],
-                                  pc, bp, sp);
+    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, &data[IDX], 11,
+                                  (TARGET_ULONG)&data[IDX], pc, bp, sp);
 
 }
 

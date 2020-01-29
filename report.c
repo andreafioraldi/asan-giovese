@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#define DEFAULT_REDZONE_SIZE 32
+
 static const char* access_type_str[] = {"READ", "WRITE"};
 
 static const char* poisoned_strerror(uint8_t poison_byte) {
@@ -93,11 +95,11 @@ static void print_shadow_line(uint8_t* shadow_addr) {
           "  0x%012" PRIxPTR
           ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
           "%02x %02x %02x\n",
-          shadow_addr, shadow_addr[0], shadow_addr[1], shadow_addr[2],
-          shadow_addr[3], shadow_addr[4], shadow_addr[5], shadow_addr[6],
-          shadow_addr[7], shadow_addr[8], shadow_addr[9], shadow_addr[10],
-          shadow_addr[11], shadow_addr[12], shadow_addr[13], shadow_addr[14],
-          shadow_addr[15]);
+          (uintptr_t)shadow_addr, shadow_addr[0], shadow_addr[1],
+          shadow_addr[2], shadow_addr[3], shadow_addr[4], shadow_addr[5],
+          shadow_addr[6], shadow_addr[7], shadow_addr[8], shadow_addr[9],
+          shadow_addr[10], shadow_addr[11], shadow_addr[12], shadow_addr[13],
+          shadow_addr[14], shadow_addr[15]);
 
 }
 
@@ -194,28 +196,28 @@ static void print_shadow_line_fault(uint8_t* shadow_addr,
 
   }
 
-  fprintf(stderr, format, shadow_addr, shadow_addr[0], shadow_addr[1],
-          shadow_addr[2], shadow_addr[3], shadow_addr[4], shadow_addr[5],
-          shadow_addr[6], shadow_addr[7], shadow_addr[8], shadow_addr[9],
-          shadow_addr[10], shadow_addr[11], shadow_addr[12], shadow_addr[13],
-          shadow_addr[14], shadow_addr[15]);
+  fprintf(stderr, format, (uintptr_t)shadow_addr, shadow_addr[0],
+          shadow_addr[1], shadow_addr[2], shadow_addr[3], shadow_addr[4],
+          shadow_addr[5], shadow_addr[6], shadow_addr[7], shadow_addr[8],
+          shadow_addr[9], shadow_addr[10], shadow_addr[11], shadow_addr[12],
+          shadow_addr[13], shadow_addr[14], shadow_addr[15]);
 
 }
 
 static void print_shadow(uint8_t* shadow_addr) {
 
   uintptr_t center = (uintptr_t)shadow_addr & ~15;
-  print_shadow_line(center - 16 * 5);
-  print_shadow_line(center - 16 * 4);
-  print_shadow_line(center - 16 * 3);
-  print_shadow_line(center - 16 * 2);
-  print_shadow_line(center - 16);
-  print_shadow_line_fault(center, shadow_addr);
-  print_shadow_line(center + 16);
-  print_shadow_line(center + 16 * 2);
-  print_shadow_line(center + 16 * 3);
-  print_shadow_line(center + 16 * 4);
-  print_shadow_line(center + 16 * 5);
+  print_shadow_line((void*)(center - 16 * 5));
+  print_shadow_line((void*)(center - 16 * 4));
+  print_shadow_line((void*)(center - 16 * 3));
+  print_shadow_line((void*)(center - 16 * 2));
+  print_shadow_line((void*)(center - 16));
+  print_shadow_line_fault((void*)(center), shadow_addr);
+  print_shadow_line((void*)(center + 16));
+  print_shadow_line((void*)(center + 16 * 2));
+  print_shadow_line((void*)(center + 16 * 3));
+  print_shadow_line((void*)(center + 16 * 4));
+  print_shadow_line((void*)(center + 16 * 5));
 
 }
 
@@ -301,7 +303,7 @@ static void print_alloc_location(TARGET_ULONG addr, TARGET_ULONG fault_addr) {
   }
 
   int i = 0;
-  while (!ckinfo && i < 16)
+  while (!ckinfo && i < DEFAULT_REDZONE_SIZE)
     ckinfo = asan_giovese_alloc_search(fault_addr - (i++));
   if (ckinfo) {
 
@@ -311,7 +313,7 @@ static void print_alloc_location(TARGET_ULONG addr, TARGET_ULONG fault_addr) {
   }
 
   i = 0;
-  while (!ckinfo && i < 16)
+  while (!ckinfo && i < DEFAULT_REDZONE_SIZE)
     ckinfo = asan_giovese_alloc_search(fault_addr + (i++));
   if (ckinfo) {
 
@@ -366,7 +368,9 @@ void asan_giovese_report_and_crash(int access_type, void* addr, size_t n,
           "Shadow bytes around the buggy address:\n",
           error_type, printable_pc);
 
-  print_shadow(((uintptr_t)fault_addr >> 3) + SHADOW_OFFSET);
+  uint8_t* shadow_fault_addr =
+      (uint8_t*)(((uintptr_t)fault_addr >> 3) + SHADOW_OFFSET);
+  print_shadow(shadow_fault_addr);
 
   fprintf(
       stderr,
