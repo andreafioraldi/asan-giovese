@@ -35,9 +35,11 @@
 
 #define HIGH_SHADOW_ADDR ((void*)0x02008fff7000ULL)
 #define LOW_SHADOW_ADDR ((void*)0x00007fff8000ULL)
+#define GAP_SHADOW_ADDR ((void*)0x00008fff7000)
 
 #define HIGH_SHADOW_SIZE (0xdfff0000fffULL)
 #define LOW_SHADOW_SIZE (0xfffefffULL)
+#define GAP_SHADOW_SIZE (0x1ffffffffff)
 
 #define SHADOW_OFFSET (0x7fff8000ULL)
 
