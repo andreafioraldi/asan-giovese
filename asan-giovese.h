@@ -117,14 +117,14 @@ int asan_giovese_store8(target_ulong addr);
 int asan_giovese_loadN(target_ulong addr, size_t n);
 int asan_giovese_storeN(target_ulong addr, size_t n);
 
-void asan_giovese_poison_region(target_ulong addr, size_t n,
+int asan_giovese_poison_region(target_ulong addr, size_t n,
                                 uint8_t poison_byte);
-void asan_giovese_user_poison_region(target_ulong addr, size_t n);
-void asan_giovese_unpoison_region(target_ulong addr, size_t n);
+int asan_giovese_user_poison_region(target_ulong addr, size_t n);
+int asan_giovese_unpoison_region(target_ulong addr, size_t n);
 
-void asan_giovese_report_and_crash(int access_type, target_ulong gaddr,
-                                   size_t n, target_ulong pc, target_ulong bp,
-                                   target_ulong sp);
+int asan_giovese_report_and_crash(int access_type, target_ulong gaddr,
+                                  size_t n, target_ulong pc, target_ulong bp,
+                                  target_ulong sp);
 
 struct chunk_info* asan_giovese_alloc_search(target_ulong query);
 void asan_giovese_alloc_insert(target_ulong start, target_ulong end,

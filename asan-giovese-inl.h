@@ -296,10 +296,10 @@ int asan_giovese_storeN(target_ulong addr, size_t n) {
 // Poison
 // ------------------------------------------------------------------------- //
 
-void asan_giovese_poison_region(target_ulong addr, size_t n,
+int asan_giovese_poison_region(target_ulong addr, size_t n,
                                 uint8_t poison_byte) {
 
-  if (!n) return;
+  if (!n) return 0;
 
   target_ulong start = addr;
   target_ulong end = start + n;
@@ -310,7 +310,7 @@ void asan_giovese_poison_region(target_ulong addr, size_t n,
     target_ulong next_8 = (start & ~7) + 8;
     size_t       first_size = next_8 - start;
 
-    if (n < first_size) return;
+    if (n < first_size) return 0;
 
     uintptr_t h = (uintptr_t)g2h(start);
     uint8_t*  shadow_addr = (uint8_t*)(h >> 3) + SHADOW_OFFSET;
@@ -328,16 +328,18 @@ void asan_giovese_poison_region(target_ulong addr, size_t n,
     start += 8;
 
   }
+  
+  return 1;
 
 }
 
-void asan_giovese_user_poison_region(target_ulong addr, size_t n) {
+int asan_giovese_user_poison_region(target_ulong addr, size_t n) {
 
-  asan_giovese_poison_region(addr, n, ASAN_USER);
+  return asan_giovese_poison_region(addr, n, ASAN_USER);
 
 }
 
-void asan_giovese_unpoison_region(target_ulong addr, size_t n) {
+int asan_giovese_unpoison_region(target_ulong addr, size_t n) {
 
   target_ulong start = addr;
   target_ulong end = start + n;
@@ -350,6 +352,8 @@ void asan_giovese_unpoison_region(target_ulong addr, size_t n) {
     start += 8;
 
   }
+  
+  return 1;
 
 }
 
@@ -374,8 +378,7 @@ static const char* poisoned_strerror(uint8_t poison_byte) {
 
 }
 
-static const char* poisoned_find_error(target_ulong addr, size_t n,
-                                       target_ulong* fault_addr) {
+static int poisoned_find_error(target_ulong addr, size_t n, target_ulong* fault_addr, const char** err_string) {
 
   target_ulong start = addr;
   target_ulong end = start + n;
@@ -406,7 +409,8 @@ static const char* poisoned_find_error(target_ulong addr, size_t n,
       default: {
 
         if (*fault_addr == 0) *fault_addr = start;
-        return poisoned_strerror(*shadow_addr);
+        *err_string = poisoned_strerror(*shadow_addr);
+        return 1;
 
       }
 
@@ -420,18 +424,20 @@ static const char* poisoned_find_error(target_ulong addr, size_t n,
 
     uintptr_t rs = g2h((end & ~7) + 8);
     uint8_t*     last_shadow_addr = (uint8_t*)(rs >> 3) + SHADOW_OFFSET;
-    return poisoned_strerror(*last_shadow_addr);
+    *err_string = poisoned_strerror(*last_shadow_addr);
+    return 1;
 
   }
 
   if (*fault_addr == 0) *fault_addr = addr;
-  return "use-after-poison";
+  *err_string = "use-after-poison";
+  return 1;
 
 }
 
 #define _MEM2SHADOW(x) ((uint8_t*)((uintptr_t)g2h(x) >> 3) + SHADOW_OFFSET)
 
-static void print_shadow_line(target_ulong addr) {
+static int print_shadow_line(target_ulong addr) {
 
   fprintf(
       stderr,
@@ -446,9 +452,11 @@ static void print_shadow_line(target_ulong addr) {
       *_MEM2SHADOW(addr + 104), *_MEM2SHADOW(addr + 112),
       *_MEM2SHADOW(addr + 120));
 
+  return 1;
+
 }
 
-static void print_shadow_line_fault(target_ulong addr,
+static int print_shadow_line_fault(target_ulong addr,
                                     target_ulong fault_addr) {
 
   int         i = (fault_addr - addr) / 8;
@@ -547,6 +555,8 @@ static void print_shadow_line_fault(target_ulong addr,
       *_MEM2SHADOW(addr + 80), *_MEM2SHADOW(addr + 88), *_MEM2SHADOW(addr + 96),
       *_MEM2SHADOW(addr + 104), *_MEM2SHADOW(addr + 112),
       *_MEM2SHADOW(addr + 120));
+
+  return 1;
 
 }
 
@@ -674,7 +684,7 @@ static void print_alloc_location(target_ulong addr, target_ulong fault_addr) {
 
 }
 
-void asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
+int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
                                    target_ulong pc, target_ulong bp,
                                    target_ulong sp) {
 
@@ -683,7 +693,7 @@ void asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
   target_ulong fault_addr = 0;
   const char*  error_type;
 
-  error_type = poisoned_find_error(addr, n, &fault_addr);
+  if(!poisoned_find_error(addr, n, &fault_addr, &error_type)) return 0;
 
   fprintf(stderr,
           "=================================================================\n"
