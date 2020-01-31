@@ -104,7 +104,7 @@ void asan_giovese_init(void) {
   assert(mmap(__ag_high_shadow, HIGH_SHADOW_SIZE, PROT_READ | PROT_WRITE,
               MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE | MAP_ANON, -1,
               0) != MAP_FAILED);
-  
+
   assert(mmap(__ag_low_shadow, LOW_SHADOW_SIZE, PROT_READ | PROT_WRITE,
               MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE | MAP_ANON, -1,
               0) != MAP_FAILED);
@@ -302,7 +302,7 @@ int asan_giovese_storeN(target_ulong addr, size_t n) {
 // ------------------------------------------------------------------------- //
 
 int asan_giovese_poison_region(target_ulong addr, size_t n,
-                                uint8_t poison_byte) {
+                               uint8_t poison_byte) {
 
   if (!n) return 0;
 
@@ -333,7 +333,7 @@ int asan_giovese_poison_region(target_ulong addr, size_t n,
     start += 8;
 
   }
-  
+
   return 1;
 
 }
@@ -357,7 +357,7 @@ int asan_giovese_unpoison_region(target_ulong addr, size_t n) {
     start += 8;
 
   }
-  
+
   return 1;
 
 }
@@ -365,6 +365,292 @@ int asan_giovese_unpoison_region(target_ulong addr, size_t n) {
 // ------------------------------------------------------------------------- //
 // Report
 // ------------------------------------------------------------------------- //
+
+// from https://gist.github.com/RabaDabaDoba/145049536f815903c79944599c6f952a
+
+// Regular text
+#define ANSI_COLOR_BLK "\e[0;30m"
+#define ANSI_COLOR_RED "\e[0;31m"
+#define ANSI_COLOR_GRN "\e[0;32m"
+#define ANSI_COLOR_YEL "\e[0;33m"
+#define ANSI_COLOR_BLU "\e[0;34m"
+#define ANSI_COLOR_MAG "\e[0;35m"
+#define ANSI_COLOR_CYN "\e[0;36m"
+#define ANSI_COLOR_WHT "\e[0;37m"
+
+// High intensty text
+#define ANSI_COLOR_HBLK "\e[0;90m"
+#define ANSI_COLOR_HRED "\e[0;91m"
+#define ANSI_COLOR_HGRN "\e[0;92m"
+#define ANSI_COLOR_HYEL "\e[0;93m"
+#define ANSI_COLOR_HBLU "\e[0;94m"
+#define ANSI_COLOR_HMAG "\e[0;95m"
+#define ANSI_COLOR_HCYN "\e[0;96m"
+#define ANSI_COLOR_HWHT "\e[0;97m"
+
+// Reset
+#define ANSI_COLOR_RESET "\e[0m"
+
+static const char* shadow_color_map[] = {
+
+    "" /* 0x0 */,
+    "" /* 0x1 */,
+    "" /* 0x2 */,
+    "" /* 0x3 */,
+    "" /* 0x4 */,
+    "" /* 0x5 */,
+    "" /* 0x6 */,
+    "" /* 0x7 */,
+    "" /* 0x8 */,
+    "" /* 0x9 */,
+    "" /* 0xa */,
+    "" /* 0xb */,
+    "" /* 0xc */,
+    "" /* 0xd */,
+    "" /* 0xe */,
+    "" /* 0xf */,
+    "" /* 0x10 */,
+    "" /* 0x11 */,
+    "" /* 0x12 */,
+    "" /* 0x13 */,
+    "" /* 0x14 */,
+    "" /* 0x15 */,
+    "" /* 0x16 */,
+    "" /* 0x17 */,
+    "" /* 0x18 */,
+    "" /* 0x19 */,
+    "" /* 0x1a */,
+    "" /* 0x1b */,
+    "" /* 0x1c */,
+    "" /* 0x1d */,
+    "" /* 0x1e */,
+    "" /* 0x1f */,
+    "" /* 0x20 */,
+    "" /* 0x21 */,
+    "" /* 0x22 */,
+    "" /* 0x23 */,
+    "" /* 0x24 */,
+    "" /* 0x25 */,
+    "" /* 0x26 */,
+    "" /* 0x27 */,
+    "" /* 0x28 */,
+    "" /* 0x29 */,
+    "" /* 0x2a */,
+    "" /* 0x2b */,
+    "" /* 0x2c */,
+    "" /* 0x2d */,
+    "" /* 0x2e */,
+    "" /* 0x2f */,
+    "" /* 0x30 */,
+    "" /* 0x31 */,
+    "" /* 0x32 */,
+    "" /* 0x33 */,
+    "" /* 0x34 */,
+    "" /* 0x35 */,
+    "" /* 0x36 */,
+    "" /* 0x37 */,
+    "" /* 0x38 */,
+    "" /* 0x39 */,
+    "" /* 0x3a */,
+    "" /* 0x3b */,
+    "" /* 0x3c */,
+    "" /* 0x3d */,
+    "" /* 0x3e */,
+    "" /* 0x3f */,
+    "" /* 0x40 */,
+    "" /* 0x41 */,
+    "" /* 0x42 */,
+    "" /* 0x43 */,
+    "" /* 0x44 */,
+    "" /* 0x45 */,
+    "" /* 0x46 */,
+    "" /* 0x47 */,
+    "" /* 0x48 */,
+    "" /* 0x49 */,
+    "" /* 0x4a */,
+    "" /* 0x4b */,
+    "" /* 0x4c */,
+    "" /* 0x4d */,
+    "" /* 0x4e */,
+    "" /* 0x4f */,
+    "" /* 0x50 */,
+    "" /* 0x51 */,
+    "" /* 0x52 */,
+    "" /* 0x53 */,
+    "" /* 0x54 */,
+    "" /* 0x55 */,
+    "" /* 0x56 */,
+    "" /* 0x57 */,
+    "" /* 0x58 */,
+    "" /* 0x59 */,
+    "" /* 0x5a */,
+    "" /* 0x5b */,
+    "" /* 0x5c */,
+    "" /* 0x5d */,
+    "" /* 0x5e */,
+    "" /* 0x5f */,
+    "" /* 0x60 */,
+    "" /* 0x61 */,
+    "" /* 0x62 */,
+    "" /* 0x63 */,
+    "" /* 0x64 */,
+    "" /* 0x65 */,
+    "" /* 0x66 */,
+    "" /* 0x67 */,
+    "" /* 0x68 */,
+    "" /* 0x69 */,
+    "" /* 0x6a */,
+    "" /* 0x6b */,
+    "" /* 0x6c */,
+    "" /* 0x6d */,
+    "" /* 0x6e */,
+    "" /* 0x6f */,
+    "" /* 0x70 */,
+    "" /* 0x71 */,
+    "" /* 0x72 */,
+    "" /* 0x73 */,
+    "" /* 0x74 */,
+    "" /* 0x75 */,
+    "" /* 0x76 */,
+    "" /* 0x77 */,
+    "" /* 0x78 */,
+    "" /* 0x79 */,
+    "" /* 0x7a */,
+    "" /* 0x7b */,
+    "" /* 0x7c */,
+    "" /* 0x7d */,
+    "" /* 0x7e */,
+    "" /* 0x7f */,
+    "" /* 0x80 */,
+    "" /* 0x81 */,
+    "" /* 0x82 */,
+    "" /* 0x83 */,
+    "" /* 0x84 */,
+    "" /* 0x85 */,
+    "" /* 0x86 */,
+    "" /* 0x87 */,
+    "" /* 0x88 */,
+    "" /* 0x89 */,
+    "" /* 0x8a */,
+    "" /* 0x8b */,
+    "" /* 0x8c */,
+    "" /* 0x8d */,
+    "" /* 0x8e */,
+    "" /* 0x8f */,
+    "" /* 0x90 */,
+    "" /* 0x91 */,
+    "" /* 0x92 */,
+    "" /* 0x93 */,
+    "" /* 0x94 */,
+    "" /* 0x95 */,
+    "" /* 0x96 */,
+    "" /* 0x97 */,
+    "" /* 0x98 */,
+    "" /* 0x99 */,
+    "" /* 0x9a */,
+    "" /* 0x9b */,
+    "" /* 0x9c */,
+    "" /* 0x9d */,
+    "" /* 0x9e */,
+    "" /* 0x9f */,
+    "" /* 0xa0 */,
+    "" /* 0xa1 */,
+    "" /* 0xa2 */,
+    "" /* 0xa3 */,
+    "" /* 0xa4 */,
+    "" /* 0xa5 */,
+    "" /* 0xa6 */,
+    "" /* 0xa7 */,
+    "" /* 0xa8 */,
+    "" /* 0xa9 */,
+    "" /* 0xaa */,
+    "" /* 0xab */,
+    ANSI_COLOR_HRED /* 0xac */,
+    "" /* 0xad */,
+    "" /* 0xae */,
+    "" /* 0xaf */,
+    "" /* 0xb0 */,
+    "" /* 0xb1 */,
+    "" /* 0xb2 */,
+    "" /* 0xb3 */,
+    "" /* 0xb4 */,
+    "" /* 0xb5 */,
+    "" /* 0xb6 */,
+    "" /* 0xb7 */,
+    "" /* 0xb8 */,
+    "" /* 0xb9 */,
+    "" /* 0xba */,
+    ANSI_COLOR_HYEL /* 0xbb */,
+    "" /* 0xbc */,
+    "" /* 0xbd */,
+    "" /* 0xbe */,
+    "" /* 0xbf */,
+    "" /* 0xc0 */,
+    "" /* 0xc1 */,
+    "" /* 0xc2 */,
+    "" /* 0xc3 */,
+    "" /* 0xc4 */,
+    "" /* 0xc5 */,
+    "" /* 0xc6 */,
+    "" /* 0xc7 */,
+    "" /* 0xc8 */,
+    "" /* 0xc9 */,
+    ANSI_COLOR_HBLU /* 0xca */,
+    ANSI_COLOR_HBLU /* 0xcb */,
+    "" /* 0xcc */,
+    "" /* 0xcd */,
+    "" /* 0xce */,
+    "" /* 0xcf */,
+    "" /* 0xd0 */,
+    "" /* 0xd1 */,
+    "" /* 0xd2 */,
+    "" /* 0xd3 */,
+    "" /* 0xd4 */,
+    "" /* 0xd5 */,
+    "" /* 0xd6 */,
+    "" /* 0xd7 */,
+    "" /* 0xd8 */,
+    "" /* 0xd9 */,
+    "" /* 0xda */,
+    "" /* 0xdb */,
+    "" /* 0xdc */,
+    "" /* 0xdd */,
+    "" /* 0xde */,
+    "" /* 0xdf */,
+    "" /* 0xe0 */,
+    "" /* 0xe1 */,
+    "" /* 0xe2 */,
+    "" /* 0xe3 */,
+    "" /* 0xe4 */,
+    "" /* 0xe5 */,
+    "" /* 0xe6 */,
+    "" /* 0xe7 */,
+    "" /* 0xe8 */,
+    "" /* 0xe9 */,
+    "" /* 0xea */,
+    "" /* 0xeb */,
+    "" /* 0xec */,
+    "" /* 0xed */,
+    "" /* 0xee */,
+    "" /* 0xef */,
+    "" /* 0xf0 */,
+    ANSI_COLOR_HRED /* 0xf1 */,
+    ANSI_COLOR_HRED /* 0xf2 */,
+    ANSI_COLOR_HRED /* 0xf3 */,
+    "" /* 0xf4 */,
+    ANSI_COLOR_HMAG /* 0xf5 */,
+    ANSI_COLOR_HCYN /* 0xf6 */,
+    ANSI_COLOR_HBLU /* 0xf7 */,
+    ANSI_COLOR_HMAG /* 0xf8 */,
+    ANSI_COLOR_HRED /* 0xf9 */,
+    ANSI_COLOR_HRED /* 0xfa */,
+    ANSI_COLOR_HRED /* 0xfb */,
+    ANSI_COLOR_HBLU /* 0xfc */,
+    ANSI_COLOR_HMAG /* 0xfd */,
+    ANSI_COLOR_HYEL /* 0xfe */,
+    ""                                                              /* 0xff */
+
+};
 
 static const char* access_type_str[] = {"READ", "WRITE"};
 
@@ -383,7 +669,9 @@ static const char* poisoned_strerror(uint8_t poison_byte) {
 
 }
 
-static int poisoned_find_error(target_ulong addr, size_t n, target_ulong* fault_addr, const char** err_string) {
+static int poisoned_find_error(target_ulong addr, size_t n,
+                               target_ulong* fault_addr,
+                               const char**  err_string) {
 
   target_ulong start = addr;
   target_ulong end = start + n;
@@ -392,7 +680,7 @@ static int poisoned_find_error(target_ulong addr, size_t n, target_ulong* fault_
   while (start < end) {
 
     uintptr_t rs = g2h(start);
-    int8_t*      shadow_addr = (int8_t*)(rs >> 3) + SHADOW_OFFSET;
+    int8_t*   shadow_addr = (int8_t*)(rs >> 3) + SHADOW_OFFSET;
     switch (*shadow_addr) {
 
       case ASAN_VALID: have_partials = 0; break;
@@ -428,7 +716,7 @@ static int poisoned_find_error(target_ulong addr, size_t n, target_ulong* fault_
   if (have_partials) {
 
     uintptr_t rs = g2h((end & ~7) + 8);
-    uint8_t*     last_shadow_addr = (uint8_t*)(rs >> 3) + SHADOW_OFFSET;
+    uint8_t*  last_shadow_addr = (uint8_t*)(rs >> 3) + SHADOW_OFFSET;
     *err_string = poisoned_strerror(*last_shadow_addr);
     return 1;
 
@@ -442,130 +730,260 @@ static int poisoned_find_error(target_ulong addr, size_t n, target_ulong* fault_
 
 #define _MEM2SHADOW(x) ((uint8_t*)((uintptr_t)g2h(x) >> 3) + SHADOW_OFFSET)
 
+#define _MEM2SHADOWPRINT(x) shadow_color_map[*_MEM2SHADOW(x)], *_MEM2SHADOW(x)
+
 static int print_shadow_line(target_ulong addr) {
 
-  fprintf(
-      stderr,
-      "  0x%012" PRIxPTR
-      ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-      "%02x %02x %02x\n",
-      (uintptr_t)_MEM2SHADOW(addr), *_MEM2SHADOW(addr), *_MEM2SHADOW(addr + 8),
-      *_MEM2SHADOW(addr + 16), *_MEM2SHADOW(addr + 24), *_MEM2SHADOW(addr + 32),
-      *_MEM2SHADOW(addr + 40), *_MEM2SHADOW(addr + 48), *_MEM2SHADOW(addr + 56),
-      *_MEM2SHADOW(addr + 64), *_MEM2SHADOW(addr + 72), *_MEM2SHADOW(addr + 80),
-      *_MEM2SHADOW(addr + 88), *_MEM2SHADOW(addr + 96),
-      *_MEM2SHADOW(addr + 104), *_MEM2SHADOW(addr + 112),
-      *_MEM2SHADOW(addr + 120));
+  fprintf(stderr,
+          "  0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+          " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+          " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+          " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+          " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+          " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+          " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+          " "
+          "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+          " %s%02x" ANSI_COLOR_RESET "\n",
+          (uintptr_t)_MEM2SHADOW(addr), _MEM2SHADOWPRINT(addr),
+          _MEM2SHADOWPRINT(addr + 8), _MEM2SHADOWPRINT(addr + 16),
+          _MEM2SHADOWPRINT(addr + 24), _MEM2SHADOWPRINT(addr + 32),
+          _MEM2SHADOWPRINT(addr + 40), _MEM2SHADOWPRINT(addr + 48),
+          _MEM2SHADOWPRINT(addr + 56), _MEM2SHADOWPRINT(addr + 64),
+          _MEM2SHADOWPRINT(addr + 72), _MEM2SHADOWPRINT(addr + 80),
+          _MEM2SHADOWPRINT(addr + 88), _MEM2SHADOWPRINT(addr + 96),
+          _MEM2SHADOWPRINT(addr + 104), _MEM2SHADOWPRINT(addr + 112),
+          _MEM2SHADOWPRINT(addr + 120));
 
   return 1;
 
 }
 
-static int print_shadow_line_fault(target_ulong addr,
-                                    target_ulong fault_addr) {
+static int print_shadow_line_fault(target_ulong addr, target_ulong fault_addr) {
 
   int         i = (fault_addr - addr) / 8;
-  const char* format = "=>0x%012" PRIxPTR
-                       ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-                       "%02x %02x %02x %02x %02x %02x\n";
+  const char* format =
+      "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+      " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+      " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+      " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+      " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+      " "
+      "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+      " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+      " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
   switch (i) {
 
     case 0:
-      format = "=>0x%012" PRIxPTR
-               ":[%02x]%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ":[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 1:
-      format = "=>0x%012" PRIxPTR
-               ": %02x[%02x]%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               "[%s%02x" ANSI_COLOR_RESET "]%s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 2:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x[%02x]%02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 3:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x[%02x]%02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               "[%s%02x" ANSI_COLOR_RESET "]%s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 4:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x[%02x]%02x %02x %02x %02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 5:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x[%02x]%02x %02x %02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               "[%s%02x" ANSI_COLOR_RESET "]%s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 6:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x[%02x]%02x %02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 7:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x[%02x]%02x %02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               "[%s%02x" ANSI_COLOR_RESET "]%s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 8:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x[%02x]%02x %02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 9:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x %02x[%02x]%02x %02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               "[%s%02x" ANSI_COLOR_RESET "]%s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 10:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x[%02x]%02x "
-               "%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 11:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x[%02x]%02x %02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
     case 12:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x[%02x]%02x %02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 13:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x[%02x]%02x %02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
+               "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 14:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x %02x[%02x]%02x\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               "[%s%02x" ANSI_COLOR_RESET "]%s%02x" ANSI_COLOR_RESET "\n";
       break;
     case 15:
-      format = "=>0x%012" PRIxPTR
-               ": %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-               "%02x %02x %02x[%02x]\n";
+      format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET
+               " "
+               "%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
+               " %s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET "]\n";
       break;
 
   }
 
-  fprintf(
-      stderr, format, (uintptr_t)_MEM2SHADOW(addr), *_MEM2SHADOW(addr),
-      *_MEM2SHADOW(addr + 8), *_MEM2SHADOW(addr + 16), *_MEM2SHADOW(addr + 24),
-      *_MEM2SHADOW(addr + 32), *_MEM2SHADOW(addr + 40), *_MEM2SHADOW(addr + 48),
-      *_MEM2SHADOW(addr + 56), *_MEM2SHADOW(addr + 64), *_MEM2SHADOW(addr + 72),
-      *_MEM2SHADOW(addr + 80), *_MEM2SHADOW(addr + 88), *_MEM2SHADOW(addr + 96),
-      *_MEM2SHADOW(addr + 104), *_MEM2SHADOW(addr + 112),
-      *_MEM2SHADOW(addr + 120));
+  fprintf(stderr, format, (uintptr_t)_MEM2SHADOW(addr), _MEM2SHADOWPRINT(addr),
+          _MEM2SHADOWPRINT(addr + 8), _MEM2SHADOWPRINT(addr + 16),
+          _MEM2SHADOWPRINT(addr + 24), _MEM2SHADOWPRINT(addr + 32),
+          _MEM2SHADOWPRINT(addr + 40), _MEM2SHADOWPRINT(addr + 48),
+          _MEM2SHADOWPRINT(addr + 56), _MEM2SHADOWPRINT(addr + 64),
+          _MEM2SHADOWPRINT(addr + 72), _MEM2SHADOWPRINT(addr + 80),
+          _MEM2SHADOWPRINT(addr + 88), _MEM2SHADOWPRINT(addr + 96),
+          _MEM2SHADOWPRINT(addr + 104), _MEM2SHADOWPRINT(addr + 112),
+          _MEM2SHADOWPRINT(addr + 120));
 
   return 1;
 
 }
 
 #undef _MEM2SHADOW
+#undef _MEM2SHADOWPRINT
 
 static void print_shadow(target_ulong addr) {
 
@@ -589,31 +1007,36 @@ static void print_alloc_location_chunk(struct chunk_info* ckinfo,
 
   if (fault_addr >= ckinfo->start && fault_addr < ckinfo->end)
     fprintf(stderr,
+            ANSI_COLOR_HGRN
             "0x%012" PRIxPTR
             " is located %ld bytes inside of %ld-byte region [0x%012" PRIxPTR
-            ",0x%012" PRIxPTR ")\n",
+            ",0x%012" PRIxPTR ")" ANSI_COLOR_RESET "\n",
             fault_addr, fault_addr - ckinfo->start, ckinfo->end - ckinfo->start,
             ckinfo->start, ckinfo->end);
   else if (ckinfo->start >= fault_addr)
     fprintf(
         stderr,
+        ANSI_COLOR_HGRN
         "0x%012" PRIxPTR
         " is located %ld bytes to the left of %ld-byte region [0x%012" PRIxPTR
-        ",0x%012" PRIxPTR ")\n",
+        ",0x%012" PRIxPTR ")" ANSI_COLOR_RESET "\n",
         fault_addr, ckinfo->start - fault_addr, ckinfo->end - ckinfo->start,
         ckinfo->start, ckinfo->end);
   else
     fprintf(
         stderr,
+        ANSI_COLOR_HGRN
         "0x%012" PRIxPTR
         " is located %ld bytes to the right of %ld-byte region [0x%012" PRIxPTR
-        ",0x%012" PRIxPTR ")\n",
+        ",0x%012" PRIxPTR ")" ANSI_COLOR_RESET "\n",
         fault_addr, fault_addr - ckinfo->end, ckinfo->end - ckinfo->start,
         ckinfo->start, ckinfo->end);
 
   if (ckinfo->free_ctx) {
 
-    fprintf(stderr, "freed by thread T%d here:\n", ckinfo->free_ctx->tid);
+    fprintf(stderr,
+            ANSI_COLOR_HMAG "freed by thread T%d here:" ANSI_COLOR_RESET "\n",
+            ckinfo->free_ctx->tid);
     size_t i;
     for (i = 0; i < ckinfo->free_ctx->size; ++i) {
 
@@ -629,12 +1052,17 @@ static void print_alloc_location_chunk(struct chunk_info* ckinfo,
 
     fputc('\n', stderr);
 
-    fprintf(stderr, "previously allocated by thread T%d here:\n",
+    fprintf(stderr,
+            ANSI_COLOR_HMAG
+            "previously allocated by thread T%d here:" ANSI_COLOR_RESET "\n",
             ckinfo->free_ctx->tid);
 
   } else
 
-    fprintf(stderr, "allocated by thread T%d here:\n", ckinfo->alloc_ctx->tid);
+    fprintf(stderr,
+            ANSI_COLOR_HMAG "allocated by thread T%d here:" ANSI_COLOR_RESET
+                            "\n",
+            ckinfo->alloc_ctx->tid);
 
   size_t i;
   for (i = 0; i < ckinfo->alloc_ctx->size; ++i) {
@@ -690,24 +1118,26 @@ static void print_alloc_location(target_ulong addr, target_ulong fault_addr) {
 }
 
 int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
-                                   target_ulong pc, target_ulong bp,
-                                   target_ulong sp) {
+                                  target_ulong pc, target_ulong bp,
+                                  target_ulong sp) {
 
   struct call_context ctx;
   asan_giovese_populate_context(&ctx, pc);
   target_ulong fault_addr = 0;
   const char*  error_type;
 
-  if(!poisoned_find_error(addr, n, &fault_addr, &error_type)) return 0;
+  if (!poisoned_find_error(addr, n, &fault_addr, &error_type)) return 0;
 
   fprintf(stderr,
-          "=================================================================\n"
-          "==%d==ERROR: " ASAN_NAME_STR ": %s on address 0x%012" PRIxPTR
-          " at pc 0x%012" PRIxPTR " bp 0x%012" PRIxPTR " sp 0x%012" PRIxPTR
-          "\n",
+          "================================================================="
+          "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
+          ": %s on address 0x%012" PRIxPTR " at pc 0x%012" PRIxPTR
+          " bp 0x%012" PRIxPTR " sp 0x%012" PRIxPTR ANSI_COLOR_RESET "\n",
           getpid(), error_type, addr, pc, bp, sp);
 
-  fprintf(stderr, "%s of size %lu at 0x%012" PRIxPTR " thread T%d\n",
+  fprintf(stderr,
+          ANSI_COLOR_HBLU "%s of size %lu at 0x%012" PRIxPTR
+                          " thread T%d" ANSI_COLOR_RESET "\n",
           access_type_str[access_type], n, addr, ctx.tid);
   size_t i;
   for (i = 0; i < ctx.size; ++i) {
@@ -728,7 +1158,8 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
   char* printable_pc = asan_giovese_printaddr(pc);
   if (!printable_pc) printable_pc = "";
   fprintf(stderr,
-          "SUMMARY: " ASAN_NAME_STR ": %s%s\n"
+          "SUMMARY: " ASAN_NAME_STR
+          ": %s%s\n"
           "Shadow bytes around the buggy address:\n",
           error_type, printable_pc);
 
@@ -739,22 +1170,23 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
       "Shadow byte legend (one shadow byte represents 8 application bytes):\n"
       "  Addressable:           00\n"
       "  Partially addressable: 01 02 03 04 05 06 07\n"
-      "  Heap left redzone:       fa\n"
-      "  Freed heap region:       fd\n"
-      "  Stack left redzone:      f1\n"
-      "  Stack mid redzone:       f2\n"
-      "  Stack right redzone:     f3\n"
-      "  Stack after return:      f5\n"
-      "  Stack use after scope:   f8\n"
-      "  Global redzone:          f9\n"
-      "  Global init order:       f6\n"
-      "  Poisoned by user:        f7\n"
-      "  Container overflow:      fc\n"
-      "  Array cookie:            ac\n"
-      "  Intra object redzone:    bb\n"
-      "  ASan internal:           fe\n"
-      "  Left alloca redzone:     ca\n"
-      "  Right alloca redzone:    cb\n"
+      "  Heap left redzone:       " ANSI_COLOR_HRED "fa" ANSI_COLOR_RESET "\n"
+      "  Heap right redzone:      " ANSI_COLOR_HRED "fb" ANSI_COLOR_RESET "\n"
+      "  Freed heap region:       " ANSI_COLOR_HMAG "fd" ANSI_COLOR_RESET "\n"
+      //"  Stack left redzone:      " ANSI_COLOR_HRED "f1" ANSI_COLOR_RESET "\n"
+      //"  Stack mid redzone:       " ANSI_COLOR_HRED "f2" ANSI_COLOR_RESET "\n"
+      //"  Stack right redzone:     " ANSI_COLOR_HRED "f3" ANSI_COLOR_RESET "\n"
+      //"  Stack after return:      " ANSI_COLOR_HMAG "f5" ANSI_COLOR_RESET "\n"
+      //"  Stack use after scope:   " ANSI_COLOR_HMAG "f8" ANSI_COLOR_RESET "\n"
+      //"  Global redzone:          " ANSI_COLOR_HRED "f9" ANSI_COLOR_RESET "\n"
+      //"  Global init order:       " ANSI_COLOR_HCYN "f6" ANSI_COLOR_RESET "\n"
+      "  Poisoned by user:        " ANSI_COLOR_HBLU "f7" ANSI_COLOR_RESET "\n"
+      //"  Container overflow:      " ANSI_COLOR_HBLU "fc" ANSI_COLOR_RESET "\n"
+      //"  Array cookie:            " ANSI_COLOR_HRED "ac" ANSI_COLOR_RESET "\n"
+      //"  Intra object redzone:    " ANSI_COLOR_HYEL "bb" ANSI_COLOR_RESET "\n"
+      "  ASan internal:           " ANSI_COLOR_HYEL "fe" ANSI_COLOR_RESET "\n"
+      //"  Left alloca redzone:     " ANSI_COLOR_HBLU "ca" ANSI_COLOR_RESET "\n"
+      //"  Right alloca redzone:    " ANSI_COLOR_HBLU "cb" ANSI_COLOR_RESET "\n"
       "  Shadow gap:              cc\n"
       "==%d==ABORTING\n",
       getpid());
