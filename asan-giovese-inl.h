@@ -679,7 +679,7 @@ static int poisoned_find_error(target_ulong addr, size_t n,
 
   while (start < end) {
 
-    uintptr_t rs = g2h(start);
+    uintptr_t rs = (uintptr_t)g2h(start);
     int8_t*   shadow_addr = (int8_t*)(rs >> 3) + SHADOW_OFFSET;
     switch (*shadow_addr) {
 
@@ -715,7 +715,7 @@ static int poisoned_find_error(target_ulong addr, size_t n,
 
   if (have_partials) {
 
-    uintptr_t rs = g2h((end & ~7) + 8);
+    uintptr_t rs = (uintptr_t)g2h((end & ~7) + 8);
     uint8_t*  last_shadow_addr = (uint8_t*)(rs >> 3) + SHADOW_OFFSET;
     *err_string = poisoned_strerror(*last_shadow_addr);
     return 1;
@@ -1155,7 +1155,7 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
 
   print_alloc_location(addr, fault_addr);
 
-  char* printable_pc = asan_giovese_printaddr(pc);
+  const char* printable_pc = asan_giovese_printaddr(pc);
   if (!printable_pc) printable_pc = "";
   fprintf(stderr,
           "SUMMARY: " ASAN_NAME_STR
