@@ -1195,3 +1195,78 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
 
 }
 
+static const char* singal_to_string[] = {
+    [SIGHUP] = "HUP",
+    [SIGINT] = "INT",
+    [SIGQUIT] = "QUIT",
+    [SIGILL] = "ILL",
+    [SIGTRAP] = "TRAP",
+    [SIGABRT] = "ABRT",
+    [SIGBUS] = "BUS",
+    [SIGFPE] = "FPE",
+    [SIGKILL] = "KILL",
+    [SIGUSR1] = "USR1",
+    [SIGSEGV] = "SEGV",
+    [SIGUSR2] = "USR2",
+    [SIGPIPE] = "PIPE",
+    [SIGALRM] = "ALRM",
+    [SIGTERM] = "TERM",
+#ifdef SIGSTKFLT
+    [SIGSTKFLT] = "STKFLT",
+#endif
+    [SIGCHLD] = "CHLD",
+    [SIGCONT] = "CONT",
+    [SIGSTOP] = "STOP",
+    [SIGTSTP] = "TSTP",
+    [SIGTTIN] = "TTIN",
+    [SIGTTOU] = "TTOU",
+    [SIGURG] = "URG",
+    [SIGXCPU] = "XCPU",
+    [SIGXFSZ] = "XFSZ",
+    [SIGVTALRM] = "VTALRM",
+    [SIGPROF] = "PROF",
+    [SIGWINCH] = "WINCH",
+    [SIGIO] = "IO",
+    [SIGPWR] = "PWR",
+    [SIGSYS] = "SYS",
+};
+
+int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc, target_ulong bp, target_ulong sp) {
+
+  struct call_context ctx;
+  asan_giovese_populate_context(&ctx, pc);
+  const char* error_type = singal_to_string[signum];
+
+  fprintf(stderr,
+          ASAN_NAME_STR ":DEADLYSIGNAL\n"
+          "================================================================="
+          "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
+          ": %s on unknown address 0x%012" PRIxPTR " (pc 0x%012" PRIxPTR
+          " bp 0x%012" PRIxPTR " sp 0x%012 T%d)" PRIxPTR ANSI_COLOR_RESET "\n",
+          getpid(), error_type, addr, pc, bp, sp, ctx.tid);
+
+  size_t i;
+  for (i = 0; i < ctx.size; ++i) {
+
+    char* printable = asan_giovese_printaddr(ctx.addresses[i]);
+    if (printable)
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ctx.addresses[i],
+              printable);
+    else
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ctx.addresses[i]);
+
+  }
+  
+  fputc('\n', stderr);
+  fprintf(stderr, ASAN_NAME_STR " can not provide additional info.\n");
+  
+  const char* printable_pc = asan_giovese_printaddr(pc);
+  if (!printable_pc) printable_pc = "";
+  fprintf(stderr,
+          "SUMMARY: " ASAN_NAME_STR
+          ": %s\n", printable_pc);
+
+  fprintf(stderr, "==%d==ABORTING\n", getpid());
+
+}
+
