@@ -702,7 +702,7 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
 
   fprintf(stderr,
           "=================================================================\n"
-          "==%d==ERROR: AddressSanitizer: %s on address 0x%012" PRIxPTR
+          "==%d==ERROR: " ASAN_NAME_STR ": %s on address 0x%012" PRIxPTR
           " at pc 0x%012" PRIxPTR " bp 0x%012" PRIxPTR " sp 0x%012" PRIxPTR
           "\n",
           getpid(), error_type, addr, pc, bp, sp);
@@ -728,7 +728,7 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
   char* printable_pc = asan_giovese_printaddr(pc);
   if (!printable_pc) printable_pc = "";
   fprintf(stderr,
-          "SUMMARY: AddressSanitizer: %s%s\n"
+          "SUMMARY: " ASAN_NAME_STR ": %s%s\n"
           "Shadow bytes around the buggy address:\n",
           error_type, printable_pc);
 

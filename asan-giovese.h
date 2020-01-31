@@ -33,6 +33,10 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
+#ifndef ASAN_NAME_STR
+#define ASAN_NAME_STR "AddressSanitizer"
+#endif
+
 #define HIGH_SHADOW_ADDR ((void*)0x02008fff7000ULL)
 #define LOW_SHADOW_ADDR ((void*)0x00007fff8000ULL)
 #define GAP_SHADOW_ADDR ((void*)0x00008fff7000)
