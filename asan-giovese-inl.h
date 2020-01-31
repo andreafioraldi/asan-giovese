@@ -569,7 +569,7 @@ static int print_shadow_line_fault(target_ulong addr,
 
 static void print_shadow(target_ulong addr) {
 
-  target_ulong center = addr & ~0x80;
+  target_ulong center = addr & ~127;
   print_shadow_line(center - 16 * 8 * 5);
   print_shadow_line(center - 16 * 8 * 4);
   print_shadow_line(center - 16 * 8 * 3);
