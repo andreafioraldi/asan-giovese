@@ -32,6 +32,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/mman.h>
 #include <assert.h>
 
@@ -1191,6 +1192,7 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
       "==%d==ABORTING\n",
       getpid());
 
+  signal(SIGABRT, SIG_DFL);
   abort();
 
 }
@@ -1242,7 +1244,7 @@ int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc, t
           "================================================================="
           "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
           ": %s on unknown address 0x%012" PRIxPTR " (pc 0x%012" PRIxPTR
-          " bp 0x%012" PRIxPTR " sp 0x%012 T%d)" PRIxPTR ANSI_COLOR_RESET "\n",
+          " bp 0x%012" PRIxPTR " sp 0x%012" PRIxPTR " T%d)" ANSI_COLOR_RESET "\n",
           getpid(), error_type, addr, pc, bp, sp, ctx.tid);
 
   size_t i;
