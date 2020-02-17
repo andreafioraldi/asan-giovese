@@ -316,7 +316,6 @@ int asan_giovese_guest_loadN(target_ulong addr, size_t n) {
       uintptr_t h = (uintptr_t)g2h(start);
       int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
       int8_t    k = *shadow_addr;
-      fprintf(stderr, "%p: 0x%x\n", shadow_addr, k);
       return k != 0 && ((intptr_t)((h & 7) + n) > k);
 
     }
@@ -324,7 +323,6 @@ int asan_giovese_guest_loadN(target_ulong addr, size_t n) {
     uintptr_t h = (uintptr_t)g2h(start);
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
     int8_t    k = *shadow_addr;
-    fprintf(stderr, "%p: 0x%x\n", shadow_addr, k);
     if (k != 0 && ((intptr_t)((h & 7) + first_size) > k)) return 1;
 
     start = next_8;
@@ -335,7 +333,6 @@ int asan_giovese_guest_loadN(target_ulong addr, size_t n) {
 
     uintptr_t h = (uintptr_t)g2h(start);
     int8_t*   shadow_addr = (int8_t*)(h >> 3) + SHADOW_OFFSET;
-    fprintf(stderr, "%p: 0x%x\n", shadow_addr, *shadow_addr);
     if (*shadow_addr) return 1;
     start += 8;
 
