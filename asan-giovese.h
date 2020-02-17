@@ -112,23 +112,33 @@ char* asan_giovese_printaddr(target_ulong addr);
 
 void asan_giovese_init(void);
 
-int asan_giovese_load1(target_ulong addr);
-int asan_giovese_load2(target_ulong addr);
-int asan_giovese_load4(target_ulong addr);
-int asan_giovese_load8(target_ulong addr);
-int asan_giovese_store1(target_ulong addr);
-int asan_giovese_store2(target_ulong addr);
-int asan_giovese_store4(target_ulong addr);
-int asan_giovese_store8(target_ulong addr);
-int asan_giovese_loadN(target_ulong addr, size_t n);
-int asan_giovese_storeN(target_ulong addr, size_t n);
+// this has to be fast, ptr is an host pointer
 
-int asan_giovese_poison_region(target_ulong addr, size_t n,
+int asan_giovese_load1(void* ptr);
+int asan_giovese_load2(void* ptr);
+int asan_giovese_load4(void* ptr);
+int asan_giovese_load8(void* ptr);
+int asan_giovese_store1(void* ptr);
+int asan_giovese_store2(void* ptr);
+int asan_giovese_store4(void* ptr);
+int asan_giovese_store8(void* ptr);
+int asan_giovese_loadN(void* ptr, size_t n);
+int asan_giovese_storeN(void* ptr, size_t n);
+int asan_giovese_guest_loadN(target_ulong addr, size_t n);
+int asan_giovese_guest_storeN(target_ulong addr, size_t n);
+
+int asan_giovese_poison_region(void* ptr, size_t n,
                                uint8_t poison_byte);
-int asan_giovese_user_poison_region(target_ulong addr, size_t n);
-int asan_giovese_unpoison_region(target_ulong addr, size_t n);
+int asan_giovese_user_poison_region(void* ptr, size_t n);
+int asan_giovese_unpoison_region(void* ptr, size_t n);
 
-int asan_giovese_report_and_crash(int access_type, target_ulong gaddr, size_t n,
+int asan_giovese_poison_guest_region(target_ulong addr, size_t n, uint8_t poison_byte);
+int asan_giovese_user_poison_guest_region(target_ulong addr, size_t n);
+int asan_giovese_unpoison_guest_region(target_ulong addr, size_t n);
+
+// addr is a guest pointer
+
+int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
                                   target_ulong pc, target_ulong bp,
                                   target_ulong sp);
 
