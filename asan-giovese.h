@@ -80,8 +80,8 @@ enum {
 struct call_context {
 
   target_ulong* addresses;
-  uint16_t      size;
-  uint16_t      tid;
+  uint32_t      tid;
+  uint32_t      size;
 
 };
 

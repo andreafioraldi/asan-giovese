@@ -1298,7 +1298,7 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
   const char*  error_type;
 
   if (!poisoned_find_error(addr, n, &fault_addr, &error_type)) return 0;
-
+  
   fprintf(stderr,
           "================================================================="
           "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
@@ -1439,6 +1439,7 @@ int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc, t
           ": %s\n", printable_pc);
 
   fprintf(stderr, "==%d==ABORTING\n", getpid());
+  return signum;
 
 }
 
