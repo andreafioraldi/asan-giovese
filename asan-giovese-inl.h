@@ -36,7 +36,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/mman.h>
 #include <assert.h>
 
-#define DEFAULT_REDZONE_SIZE 32
+#define DEFAULT_REDZONE_SIZE 128
 
 // ------------------------------------------------------------------------- //
 // Alloc
