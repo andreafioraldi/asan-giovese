@@ -1443,3 +1443,42 @@ int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc, t
 
 }
 
+int asan_giovese_badfree(target_ulong addr, target_ulong pc) {
+
+  struct call_context ctx;
+  asan_giovese_populate_context(&ctx, pc);
+
+  fprintf(stderr,
+          "================================================================="
+          "\n" ANSI_COLOR_HRED "==%d==ERROR: " ASAN_NAME_STR
+          ": attempting free on address which was not malloc()-ed: 0x%012"
+          PRIxPTR " in thread T%d" ANSI_COLOR_RESET "\n", getpid(), addr,
+          ctx.tid);
+
+  size_t i;
+  for (i = 0; i < ctx.size; ++i) {
+
+    char* printable = asan_giovese_printaddr(ctx.addresses[i]);
+    if (printable)
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "%s\n", i, ctx.addresses[i],
+              printable);
+    else
+      fprintf(stderr, "    #%lu 0x%012" PRIxPTR "\n", i, ctx.addresses[i]);
+
+  }
+  
+  fputc('\n', stderr);
+  print_alloc_location(addr, addr);
+  
+  const char* printable_pc = asan_giovese_printaddr(pc);
+  if (!printable_pc) printable_pc = "";
+  fprintf(stderr,
+          "SUMMARY: " ASAN_NAME_STR
+          ": bad-free %s\n", printable_pc);
+
+  fprintf(stderr, "==%d==ABORTING\n", getpid());
+  signal(SIGABRT, SIG_DFL);
+  abort();
+
+}
+

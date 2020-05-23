@@ -145,6 +145,8 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
 int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc,
                                target_ulong bp, target_ulong sp);
 
+int asan_giovese_badfree(target_ulong addr, target_ulong pc);
+
 struct chunk_info* asan_giovese_alloc_search(target_ulong query);
 void asan_giovese_alloc_insert(target_ulong start, target_ulong end,
                                struct call_context* alloc_ctx);
