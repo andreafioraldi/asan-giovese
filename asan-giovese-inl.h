@@ -1088,6 +1088,7 @@ static int print_shadow_line_fault(target_ulong addr, target_ulong fault_addr) {
                "%s%02x" ANSI_COLOR_RESET "[%s%02x" ANSI_COLOR_RESET
                "]%s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
                " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET "\n";
+      break;
     case 12:
       format = "=>0x%012" PRIxPTR ": %s%02x" ANSI_COLOR_RESET
                " %s%02x" ANSI_COLOR_RESET " %s%02x" ANSI_COLOR_RESET
